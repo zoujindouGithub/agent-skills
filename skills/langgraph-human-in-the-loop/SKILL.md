@@ -1,38 +1,38 @@
 ---
 name: langgraph-human-in-the-loop
-description: "INVOKE THIS SKILL when implementing human-in-the-loop patterns, pausing for approval, or handling errors in LangGraph. Covers interrupt(), Command(resume=...), approval/validation workflows, and the 4-tier error handling strategy."
+description: "在 LangGraph 中实现人机协同（human-in-the-loop）模式、暂停等待审批或处理错误时调用此技能。涵盖 interrupt()、Command(resume=...)、审批/验证工作流以及 4 级错误处理策略。"
 ---
 
 <overview>
-LangGraph's human-in-the-loop patterns let you pause graph execution, surface data to users, and resume with their input:
+LangGraph 的人机协同模式允许你暂停图的执行、向用户展示数据，并在获取用户输入后恢复执行：
 
-- **`interrupt(value)`** — pauses execution, surfaces a value to the caller
-- **`Command(resume=value)`** — resumes execution, providing the value back to `interrupt()`
-- **Checkpointer** — required to save state while paused
-- **Thread ID** — required to identify which paused execution to resume
+- **`interrupt(value)`** — 暂停执行，向调用方展示一个值
+- **`Command(resume=value)`** — 恢复执行，将值传回给 `interrupt()`
+- **Checkpointer（检查点保存器）** — 暂停期间保存状态所必需
+- **Thread ID（线程 ID）** — 标识需要恢复哪个已暂停的执行所必需
 </overview>
 
 ---
 
-## Requirements
+## 前置要求
 
-Three things are required for interrupts to work:
+中断机制正常工作需要满足三个条件：
 
-1. **Checkpointer** — compile with `checkpointer=InMemorySaver()` (dev) or `PostgresSaver` (prod)
-2. **Thread ID** — pass `{"configurable": {"thread_id": "..."}}` to every `invoke`/`stream` call
-3. **JSON-serializable payload** — the value passed to `interrupt()` must be JSON-serializable
+1. **Checkpointer** — 使用 `checkpointer=InMemorySaver()`（开发环境）或 `PostgresSaver`（生产环境）进行编译
+2. **Thread ID** — 在每次 `invoke`/`stream` 调用中传入 `{"configurable": {"thread_id": "..."}}`
+3. **可 JSON 序列化的负载** — 传递给 `interrupt()` 的值必须是可 JSON 序列化的
 
 ---
 
-## Basic Interrupt + Resume
+## 基础中断与恢复（Interrupt + Resume）
 
-`interrupt(value)` pauses the graph. The value surfaces in the result under `__interrupt__`. `Command(resume=value)` resumes — the resume value becomes the return value of `interrupt()`.
+`interrupt(value)` 会暂停图的执行。该值会暴露在返回结果的 `__interrupt__` 字段中。`Command(resume=value)` 用于恢复执行 — resume 的值将成为 `interrupt()` 的返回值。
 
-**Critical**: when the graph resumes, the node restarts from the **beginning** — all code before `interrupt()` re-runs.
+**关键注意点**：当图恢复执行时，节点会从**开头**重新启动 — `interrupt()` 之前的所有代码都会重新运行。
 
 <ex-basic-interrupt-resume>
 <python>
-Pause execution for human review and resume with Command.
+暂停执行以等待人工审核，并使用 Command 恢复。
 
 ```python
 from langgraph.types import interrupt, Command
@@ -44,9 +44,9 @@ class State(TypedDict):
     approved: bool
 
 def approval_node(state: State):
-    # Pause and ask for approval
+    # 暂停并请求审批
     approved = interrupt("Do you approve this action?")
-    # When resumed, Command(resume=...) returns that value here
+    # 恢复执行时，Command(resume=...) 会在此处返回该值
     return {"approved": approved}
 
 checkpointer = InMemorySaver()
@@ -60,18 +60,18 @@ graph = (
 
 config = {"configurable": {"thread_id": "thread-1"}}
 
-# Initial run — hits interrupt and pauses
+# 初始运行 — 触发 interrupt 并暂停
 result = graph.invoke({"approved": False}, config)
 print(result["__interrupt__"])
 # [Interrupt(value='Do you approve this action?')]
 
-# Resume with the human's response
+# 使用人工的响应恢复执行
 result = graph.invoke(Command(resume=True), config)
 print(result["approved"])  # True
 ```
 </python>
 <typescript>
-Pause execution for human review and resume with Command.
+暂停执行以等待人工审核，并使用 Command 恢复。
 
 ```typescript
 import { interrupt, Command, MemorySaver, StateGraph, StateSchema, START, END } from "@langchain/langgraph";
@@ -82,9 +82,9 @@ const State = new StateSchema({
 });
 
 const approvalNode = async (state: typeof State.State) => {
-  // Pause and ask for approval
+  // 暂停并请求审批
   const approved = interrupt("Do you approve this action?");
-  // When resumed, Command({ resume }) returns that value here
+  // 恢复执行时，Command({ resume }) 会在此处返回该值
   return { approved };
 };
 
@@ -97,12 +97,12 @@ const graph = new StateGraph(State)
 
 const config = { configurable: { thread_id: "thread-1" } };
 
-// Initial run — hits interrupt and pauses
+// 初始运行 — 触发 interrupt 并暂停
 let result = await graph.invoke({ approved: false }, config);
 console.log(result.__interrupt__);
 // [{ value: 'Do you approve this action?', ... }]
 
-// Resume with the human's response
+// 使用人工的响应恢复执行
 result = await graph.invoke(new Command({ resume: true }), config);
 console.log(result.approved);  // true
 ```
@@ -111,13 +111,13 @@ console.log(result.approved);  // true
 
 ---
 
-## Approval Workflow
+## 审批工作流（Approval Workflow）
 
-A common pattern: interrupt to show a draft, then route based on the human's decision.
+一种常见模式：通过中断展示草稿，然后根据人工决策进行路由。
 
 <ex-approval-workflow>
 <python>
-Interrupt for human review, then route to send or end based on the decision.
+中断执行以等待人工审核，然后根据决策路由至发送或结束。
 
 ```python
 from langgraph.types import interrupt, Command
@@ -131,10 +131,10 @@ class EmailAgentState(TypedDict):
     classification: dict
 
 def human_review(state: EmailAgentState) -> Command[Literal["send_reply", "__end__"]]:
-    """Pause for human review using interrupt and route based on decision."""
+    """使用 interrupt 暂停以等待人工审核，并根据决策进行路由。"""
     classification = state.get("classification", {})
 
-    # interrupt() must come first — any code before it will re-run on resume
+    # interrupt() 必须放在最前面 — 其前面的任何代码都会在恢复时重新运行
     human_decision = interrupt({
         "email_id": state.get("email_content", ""),
         "draft_response": state.get("draft_response", ""),
@@ -142,19 +142,19 @@ def human_review(state: EmailAgentState) -> Command[Literal["send_reply", "__end
         "action": "Please review and approve/edit this response"
     })
 
-    # Process the human's decision
+    # 处理人工决策
     if human_decision.get("approved"):
         return Command(
             update={"draft_response": human_decision.get("edited_response", state.get("draft_response", ""))},
             goto="send_reply"
         )
     else:
-        # Rejection — human will handle directly
+        # 拒绝 — 将由人工直接处理
         return Command(update={}, goto=END)
 ```
 </python>
 <typescript>
-Interrupt for human review, then route to send or end based on the decision.
+中断执行以等待人工审核，然后根据决策路由至发送或结束。
 
 ```typescript
 import { interrupt, Command, END, GraphNode } from "@langchain/langgraph";
@@ -162,7 +162,7 @@ import { interrupt, Command, END, GraphNode } from "@langchain/langgraph";
 const humanReview: GraphNode<typeof EmailAgentState> = async (state) => {
   const classification = state.classification!;
 
-  // interrupt() must come first — any code before it will re-run on resume
+  // interrupt() 必须放在最前面 — 其前面的任何代码都会在恢复时重新运行
   const humanDecision = interrupt({
     emailId: state.emailContent,
     draftResponse: state.responseText,
@@ -170,7 +170,7 @@ const humanReview: GraphNode<typeof EmailAgentState> = async (state) => {
     action: "Please review and approve/edit this response",
   });
 
-  // Process the human's decision
+  // 处理人工决策
   if (humanDecision.approved) {
     return new Command({
       update: { responseText: humanDecision.editedResponse || state.responseText },
@@ -186,13 +186,13 @@ const humanReview: GraphNode<typeof EmailAgentState> = async (state) => {
 
 ---
 
-## Validation Loop
+## 验证循环（Validation Loop）
 
-Use `interrupt()` in a loop to validate human input and re-prompt if invalid.
+在循环中使用 `interrupt()` 来验证人工输入，如果输入无效则重新提示。
 
 <ex-validation-loop>
 <python>
-Validate human input in a loop, re-prompting until valid.
+在循环中验证人工输入，重复提示直到输入有效。
 
 ```python
 from langgraph.types import interrupt
@@ -203,17 +203,17 @@ def get_age_node(state):
     while True:
         answer = interrupt(prompt)
 
-        # Validate the input
+        # 验证输入
         if isinstance(answer, int) and answer > 0:
             break
         else:
-            # Invalid input — ask again with a more specific prompt
+            # 输入无效 — 使用更具体的提示重新询问
             prompt = f"'{answer}' is not a valid age. Please enter a positive number."
 
     return {"age": answer}
 ```
 
-Each `Command(resume=...)` call provides the next answer. If invalid, the loop re-interrupts with a clearer message.
+每次 `Command(resume=...)` 调用都会提供下一次的回答。如果输入无效，循环会带着更明确的提示信息再次中断。
 
 ```python
 config = {"configurable": {"thread_id": "form-1"}}
@@ -228,7 +228,7 @@ print(final["age"])  # 30
 ```
 </python>
 <typescript>
-Validate human input in a loop, re-prompting until valid.
+在循环中验证人工输入，重复提示直到输入有效。
 
 ```typescript
 import { interrupt } from "@langchain/langgraph";
@@ -239,11 +239,11 @@ const getAgeNode = (state: typeof State.State) => {
   while (true) {
     const answer = interrupt(prompt);
 
-    // Validate the input
+    // 验证输入
     if (typeof answer === "number" && answer > 0) {
       return { age: answer };
     } else {
-      // Invalid input — ask again with a more specific prompt
+      // 输入无效 — 使用更具体的提示重新询问
       prompt = `'${answer}' is not a valid age. Please enter a positive number.`;
     }
   }
@@ -254,13 +254,13 @@ const getAgeNode = (state: typeof State.State) => {
 
 ---
 
-## Multiple Interrupts
+## 多重中断（Multiple Interrupts）
 
-When parallel branches each call `interrupt()`, resume all of them in a single invocation by mapping each interrupt ID to its resume value.
+当多个并行分支各自调用 `interrupt()` 时，可以通过将每个中断 ID 映射到其对应的 resume 值，在单次调用中恢复所有中断。
 
 <ex-multiple-interrupts>
 <python>
-Resume multiple parallel interrupts by mapping interrupt IDs to values.
+通过将中断 ID 映射到对应值来恢复多个并行中断。
 
 ```python
 from typing import Annotated, TypedDict
@@ -293,11 +293,11 @@ graph = (
 
 config = {"configurable": {"thread_id": "1"}}
 
-# Both parallel nodes hit interrupt() and pause
+# 两个并行节点均触发 interrupt() 并暂停
 result = graph.invoke({"vals": []}, config)
-# result["__interrupt__"] contains both Interrupt objects with IDs
+# result["__interrupt__"] 包含带有 ID 的两个 Interrupt 对象
 
-# Resume all pending interrupts at once using a map of id -> value
+# 使用 id -> value 的映射一次性恢复所有挂起的中断
 resume_map = {
     i.id: f"answer for {i.value}"
     for i in result["__interrupt__"]
@@ -307,7 +307,7 @@ result = graph.invoke(Command(resume=resume_map), config)
 ```
 </python>
 <typescript>
-Resume multiple parallel interrupts by mapping interrupt IDs to values.
+通过将中断 ID 映射到对应值来恢复多个并行中断。
 
 ```typescript
 import { Command, END, MemorySaver, START, StateGraph, interrupt, isInterrupted, INTERRUPT, Annotation } from "@langchain/langgraph";
@@ -342,7 +342,7 @@ const config = { configurable: { thread_id: "1" } };
 
 const interruptedResult = await graph.invoke({ vals: [] }, config);
 
-// Resume all pending interrupts at once
+// 一次性恢复所有挂起的中断
 const resumeMap: Record<string, string> = {};
 if (isInterrupted(interruptedResult)) {
   for (const i of interruptedResult[INTERRUPT]) {
@@ -357,49 +357,49 @@ const result = await graph.invoke(new Command({ resume: resumeMap }), config);
 </typescript>
 </ex-multiple-interrupts>
 
-User-fixable errors use `interrupt()` to pause and collect missing data — that's the pattern covered by this skill. For the full 4-tier error handling strategy (RetryPolicy, Command error loops, etc.), see the **fundamentals** skill.
+用户可修复的错误可以使用 `interrupt()` 暂停并收集缺失的数据 — 这正是本技能所涵盖的模式。有关完整的 4 级错误处理策略（RetryPolicy、Command 错误循环等），请参阅 **fundamentals** 技能。
 
 ---
 
-## Side Effects Before Interrupt Must Be Idempotent
+## 中断前的副作用必须具备幂等性
 
-When the graph resumes, the node restarts from the **beginning** — ALL code before `interrupt()` re-runs. In subgraphs, BOTH the parent node and the subgraph node re-execute.
+当图恢复执行时，节点会从**开头**重新启动 — `interrupt()` 之前的**所有**代码都会重新运行。在子图中，父节点和子图节点**都会**重新执行。
 
 <idempotency-rules>
 
-**Do:**
-- Use **upsert** (not insert) operations before `interrupt()`
-- Use **check-before-create** patterns
-- Place side effects **after** `interrupt()` when possible
-- Separate side effects into their own nodes
+**推荐做法（Do）：**
+- 在 `interrupt()` 之前使用 **upsert**（更新或插入，而非纯插入）操作
+- 使用**先检查后创建（check-before-create）**模式
+- 尽可能将副作用放置在 `interrupt()` **之后**
+- 将副作用拆分到独立的节点中
 
-**Don't:**
-- Create new records before `interrupt()` — duplicates on each resume
-- Append to lists before `interrupt()` — duplicate entries on each resume
+**禁止做法（Don't）：**
+- 在 `interrupt()` 之前创建新记录 — 每次恢复时都会产生重复记录
+- 在 `interrupt()` 之前向列表中追加元素 — 每次恢复时都会产生重复项
 
 </idempotency-rules>
 
 <ex-idempotent-patterns>
 <python>
-Idempotent operations before interrupt vs non-idempotent (wrong).
+中断前的幂等操作与非幂等操作（错误示范）对比。
 
 ```python
-# GOOD: Upsert is idempotent — safe before interrupt
+# 正确：Upsert 具有幂等性 — 在 interrupt 之前执行是安全的
 def node_a(state: State):
     db.upsert_user(user_id=state["user_id"], status="pending_approval")
     approved = interrupt("Approve this change?")
     return {"approved": approved}
 
-# GOOD: Side effect AFTER interrupt — only runs once
+# 正确：副作用放在 interrupt 之后 — 仅运行一次
 def node_a(state: State):
     approved = interrupt("Approve this change?")
     if approved:
         db.create_audit_log(user_id=state["user_id"], action="approved")
     return {"approved": approved}
 
-# BAD: Insert creates duplicates on each resume!
+# 错误：Insert 在每次恢复执行时都会创建重复记录！
 def node_a(state: State):
-    audit_id = db.create_audit_log({  # Runs again on resume!
+    audit_id = db.create_audit_log({  # 恢复执行时会再次运行！
         "user_id": state["user_id"],
         "action": "pending_approval",
     })
@@ -408,17 +408,17 @@ def node_a(state: State):
 ```
 </python>
 <typescript>
-Idempotent operations before interrupt vs non-idempotent (wrong).
+中断前的幂等操作与非幂等操作（错误示范）对比。
 
 ```typescript
-// GOOD: Upsert is idempotent — safe before interrupt
+// 正确：Upsert 具有幂等性 — 在 interrupt 之前执行是安全的
 const nodeA = async (state: typeof State.State) => {
   await db.upsertUser({ userId: state.userId, status: "pending_approval" });
   const approved = interrupt("Approve this change?");
   return { approved };
 };
 
-// GOOD: Side effect AFTER interrupt — only runs once
+// 正确：副作用放在 interrupt 之后 — 仅运行一次
 const nodeA = async (state: typeof State.State) => {
   const approved = interrupt("Approve this change?");
   if (approved) {
@@ -427,9 +427,9 @@ const nodeA = async (state: typeof State.State) => {
   return { approved };
 };
 
-// BAD: Insert creates duplicates on each resume!
+// 错误：Insert 在每次恢复执行时都会创建重复记录！
 const nodeA = async (state: typeof State.State) => {
-  await db.createAuditLog({  // Runs again on resume!
+  await db.createAuditLog({  // 恢复执行时会再次运行！
     userId: state.userId,
     action: "pending_approval",
   });
@@ -442,20 +442,20 @@ const nodeA = async (state: typeof State.State) => {
 
 <subgraph-interrupt-re-execution>
 
-### Subgraph re-execution on resume
+### 子图在恢复执行时的重复执行行为
 
-When a subgraph contains an `interrupt()`, resuming re-executes BOTH the parent node (that invoked the subgraph) AND the subgraph node (that called `interrupt()`):
+当子图中包含 `interrupt()` 时，恢复执行会同时重新执行父节点（调用子图的节点）**以及**子图节点（调用 `interrupt()` 的节点）：
 
 <python>
 
 ```python
 def node_in_parent_graph(state: State):
-    some_code()  # <-- Re-executes on resume
+    some_code()  # <-- 恢复执行时会重新运行
     subgraph_result = subgraph.invoke(some_input)
     # ...
 
 def node_in_subgraph(state: State):
-    some_other_code()  # <-- Also re-executes on resume
+    some_other_code()  # <-- 恢复执行时也会重新运行
     result = interrupt("What's your name?")
     # ...
 ```
@@ -464,13 +464,13 @@ def node_in_subgraph(state: State):
 
 ```typescript
 async function nodeInParentGraph(state: State) {
-  someCode();  // <-- Re-executes on resume
+  someCode();  // <-- 恢复执行时会重新运行
   const subgraphResult = await subgraph.invoke(someInput);
   // ...
 }
 
 async function nodeInSubgraph(state: State) {
-  someOtherCode();  // <-- Also re-executes on resume
+  someOtherCode();  // <-- 恢复执行时也会重新运行
   const result = interrupt("What's your name?");
   // ...
 }
@@ -480,34 +480,34 @@ async function nodeInSubgraph(state: State) {
 
 ---
 
-## Command(resume) Warning
+## Command(resume) 警告
 
-`Command(resume=...)` is the **only** Command pattern intended as input to `invoke()`/`stream()`. Do NOT pass `Command(update=...)` as input — it resumes from the latest checkpoint and the graph appears stuck. See the fundamentals skill for the full antipattern explanation.
+`Command(resume=...)` 是**唯一定义用于**作为 `invoke()`/`stream()` 输入的 Command 模式。**切勿**将 `Command(update=...)` 作为输入传入 — 它会从最新检查点恢复，并导致图看起来处于卡死状态。有关反面模式的完整解释，请参阅 fundamentals 技能。
 
 ---
 
-## Fixes
+## 修复指南（Fixes）
 
 <fix-checkpointer-required-for-interrupts>
 <python>
-Checkpointer required for interrupt functionality.
+中断功能必须配置 Checkpointer。
 
 ```python
-# WRONG
+# 错误
 graph = builder.compile()
 
-# CORRECT
+# 正确
 graph = builder.compile(checkpointer=InMemorySaver())
 ```
 </python>
 <typescript>
-Checkpointer required for interrupt functionality.
+中断功能必须配置 Checkpointer。
 
 ```typescript
-// WRONG
+// 错误
 const graph = builder.compile();
 
-// CORRECT
+// 正确
 const graph = builder.compile({ checkpointer: new MemorySaver() });
 ```
 </typescript>
@@ -515,35 +515,35 @@ const graph = builder.compile({ checkpointer: new MemorySaver() });
 
 <fix-resume-with-command>
 <python>
-Use Command to resume from an interrupt (regular dict restarts graph).
+使用 Command 从中断中恢复（传入常规 dict 会重新启动图）。
 
 ```python
-# WRONG
+# 错误
 graph.invoke({"resume_data": "approve"}, config)
 
-# CORRECT
+# 正确
 graph.invoke(Command(resume="approve"), config)
 ```
 </python>
 <typescript>
-Use Command to resume from an interrupt (regular object restarts graph).
+使用 Command 从中断中恢复（传入常规对象会重新启动图）。
 
 ```typescript
-// WRONG
+// 错误
 await graph.invoke({ resumeData: "approve" }, config);
 
-// CORRECT
+// 正确
 await graph.invoke(new Command({ resume: "approve" }), config);
 ```
 </typescript>
 </fix-resume-with-command>
 
 <boundaries>
-### What You Should NOT Do
+### 禁止事项（What You Should NOT Do）
 
-- Use interrupts without a checkpointer — will fail
-- Resume without the same thread_id — creates a new thread instead of resuming
-- Pass `Command(update=...)` as invoke input — graph appears stuck (use plain dict)
-- Perform non-idempotent side effects before `interrupt()` — creates duplicates on resume
-- Assume code before `interrupt()` only runs once — it re-runs every resume
+- 在未配置 checkpointer 的情况下使用中断 — 将会导致失败
+- 恢复执行时未传入相同的 thread_id — 会创建新线程而非恢复原流程
+- 将 `Command(update=...)` 作为 invoke 输入传入 — 图会看似卡死（请使用普通 dict）
+- 在 `interrupt()` 之前执行非幂等的副作用 — 恢复时会产生重复数据
+- 假定 `interrupt()` 之前的代码只会执行一次 — 每次恢复时它都会重新运行
 </boundaries>

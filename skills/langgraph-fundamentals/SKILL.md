@@ -1,82 +1,82 @@
 ---
 name: langgraph-fundamentals
-description: "INVOKE THIS SKILL when writing ANY LangGraph code. Covers StateGraph, state schemas, nodes, edges, Command, Send, invoke, streaming, and error handling."
+description: "编写任何 LangGraph 代码时请调用此技能。涵盖 StateGraph、状态模式 (State Schemas)、节点 (Nodes)、边 (Edges)、Command、Send、invoke、流式传输 (Streaming) 以及错误处理。"
 ---
 
 <overview>
-LangGraph models agent workflows as **directed graphs**:
+LangGraph 将 Agent 工作流建模为**有向图**：
 
-- **StateGraph**: Main class for building stateful graphs
-- **Nodes**: Functions that perform work and update state
-- **Edges**: Define execution order (static or conditional)
-- **START/END**: Special nodes marking entry and exit points
-- **State with Reducers**: Control how state updates are merged
+- **StateGraph**：构建有状态图的主类
+- **Nodes（节点）**：执行任务并更新状态的函数
+- **Edges（边）**：定义执行顺序（静态或条件式）
+- **START/END**：标记入口和退出点的特殊节点
+- **带 Reducer 的 State**：控制状态更新的合并方式
 
-Graphs must be `compile()`d before execution.
+图在执行前必须先进行 `compile()`。
 </overview>
 
 <design-methodology>
 
-### Designing a LangGraph application
+### 设计 LangGraph 应用程序
 
-Follow these 5 steps when building a new graph:
+构建新图时，请遵循以下 5 个步骤：
 
-1. **Map out discrete steps** — sketch a flowchart of your workflow. Each step becomes a node.
-2. **Identify what each step does** — categorize nodes: LLM step, data step, action step, or user input step. For each, determine static context (prompt), dynamic context (from state), retry strategy, and desired outcome.
-3. **Design your state** — state is shared memory for all nodes. Store raw data, format prompts on-demand inside nodes.
-4. **Build your nodes** — implement each step as a function that takes state and returns partial updates.
-5. **Wire it together** — connect nodes with edges, add conditional routing, compile with a checkpointer if needed.
+1. **梳理离散步骤** —— 绘制工作流的流程图。每个步骤都将成为一个节点。
+2. **明确每个步骤的职责** —— 划分节点类型：LLM 步骤、数据步骤、动作步骤或用户输入步骤。针对每个步骤，确定其静态上下文（Prompt）、动态上下文（来自 State）、重试策略以及预期结果。
+3. **设计状态 (State)** —— 状态是所有节点共享的内存。存储原始数据，并在节点内按需格式化 Prompt。
+4. **构建节点** —— 将每个步骤实现为一个接收状态并返回部分更新的函数。
+5. **串联成图** —— 用边连接节点，添加条件路由，并在需要时配合 checkpointer 进行编译。
 
 </design-methodology>
 
 <when-to-use-langgraph>
 
-| Use LangGraph When | Use Alternatives When |
-|-------------------|----------------------|
-| Need fine-grained control over agent orchestration | Quick prototyping → LangChain agents |
-| Building complex workflows with branching/loops | Simple stateless workflows → LangChain direct |
-| Require human-in-the-loop, persistence | Batteries-included features → Deep Agents |
+| 适合使用 LangGraph 的场景 | 适合使用替代方案的场景 |
+|---|---|
+| 需要对 Agent 编排进行细粒度控制 | 快速原型开发 → LangChain agents |
+| 构建包含分支/循环的复杂工作流 | 简单的无状态工作流 → 直接使用 LangChain |
+| 需要人机协作 (Human-in-the-loop)、持久化存储 | 开箱即用型功能特性 → Deep Agents |
 
 </when-to-use-langgraph>
 
 ---
 
-## State Management
+## 状态管理 (State Management)
 
 <state-update-strategies>
 
-| Need | Solution | Example |
-|------|----------|---------|
-| Overwrite value | No reducer (default) | Simple fields like counters |
-| Append to list | Reducer (operator.add / concat) | Message history, logs |
-| Custom logic | Custom reducer function | Complex merging |
+| 需求 | 解决方案 | 示例 |
+|---|---|---|
+| 覆盖原有值 | 无 Reducer（默认） | 简单字段，如计数器 |
+| 追加到列表 | Reducer (`operator.add` / `concat`) | 消息历史、日志 |
+| 自定义逻辑 | 自定义 Reducer 函数 | 复杂合并逻辑 |
 
 </state-update-strategies>
 
 <ex-state-with-reducer>
 <python>
-Define state schema with reducers for accumulating lists and summing integers.
+定义包含 Reducer 的状态模式，用于累加列表和对整数求和。
 
 ```python
 from typing_extensions import TypedDict, Annotated
 import operator
 
 class State(TypedDict):
-    name: str  # Default: overwrites on update
-    messages: Annotated[list, operator.add]  # Appends to list
-    total: Annotated[int, operator.add]  # Sums integers
+    name: str  # 默认：更新时直接覆盖
+    messages: Annotated[list, operator.add]  # 追加到列表中
+    total: Annotated[int, operator.add]  # 整数求和累加
 ```
 </python>
 <typescript>
-Use StateSchema with ReducedValue for accumulating arrays.
+使用带有 `ReducedValue` 的 `StateSchema` 来累积数组。
 
 ```typescript
 import { StateSchema, ReducedValue, MessagesValue } from "@langchain/langgraph";
 import { z } from "zod";
 
 const State = new StateSchema({
-  name: z.string(),  // Default: overwrites
-  messages: MessagesValue,  // Built-in for messages
+  name: z.string(),  // 默认：直接覆盖
+  messages: MessagesValue,  // 用于消息的内置类型
   items: new ReducedValue(
     z.array(z.string()).default(() => []),
     { reducer: (current, update) => current.concat(update) }
@@ -88,75 +88,75 @@ const State = new StateSchema({
 
 <fix-forgot-reducer-for-list>
 <python>
-Without a reducer, returning a list overwrites previous values.
+若不使用 Reducer，返回列表将直接覆盖先前的值。
 
 ```python
-# WRONG: List will be OVERWRITTEN
+# 错误写法：列表将被覆盖 (OVERWRITTEN)
 class State(TypedDict):
-    messages: list  # No reducer!
+    messages: list  # 没有 Reducer！
 
-# Node 1 returns: {"messages": ["A"]}
-# Node 2 returns: {"messages": ["B"]}
-# Final: {"messages": ["B"]}  # "A" is LOST!
+# 节点 1 返回：{"messages": ["A"]}
+# 节点 2 返回：{"messages": ["B"]}
+# 最终结果：{"messages": ["B"]}  # "A" 丢失了！
 
-# CORRECT: Use Annotated with operator.add
+# 正确写法：使用带有 operator.add 的 Annotated
 from typing import Annotated
 import operator
 
 class State(TypedDict):
     messages: Annotated[list, operator.add]
-# Final: {"messages": ["A", "B"]}
+# 最终结果：{"messages": ["A", "B"]}
 ```
 </python>
 <typescript>
-Without ReducedValue, arrays are overwritten not appended.
+若不使用 `ReducedValue`，数组会被覆盖而不是追加。
 
 ```typescript
-// WRONG: Array will be overwritten
+// 错误写法：数组将被覆盖
 const State = new StateSchema({
-  items: z.array(z.string()),  // No reducer!
+  items: z.array(z.string()),  // 没有 Reducer！
 });
-// Node 1: { items: ["A"] }, Node 2: { items: ["B"] }
-// Final: { items: ["B"] }  // A is lost!
+// 节点 1：{ items: ["A"] }，节点 2：{ items: ["B"] }
+// 最终结果：{ items: ["B"] }  // A 丢失了！
 
-// CORRECT: Use ReducedValue
+// 正确写法：使用 ReducedValue
 const State = new StateSchema({
   items: new ReducedValue(
     z.array(z.string()).default(() => []),
     { reducer: (current, update) => current.concat(update) }
   ),
 });
-// Final: { items: ["A", "B"] }
+// 最终结果：{ items: ["A", "B"] }
 ```
 </typescript>
 </fix-forgot-reducer-for-list>
 
 <fix-state-must-return-dict>
 <python>
-Nodes must return partial updates, not mutate and return full state.
+节点必须返回部分更新 (partial updates)，而不是直接修改并返回完整状态。
 
 ```python
-# WRONG: Returning entire state object
+# 错误写法：返回整个状态对象
 def my_node(state: State) -> State:
     state["field"] = "updated"
-    return state  # Don't mutate and return!
+    return state  # 切勿直接修改并返回！
 
-# CORRECT: Return dict with only the updates
+# 正确写法：仅返回包含更新项的字典
 def my_node(state: State) -> dict:
     return {"field": "updated"}
 ```
 </python>
 <typescript>
-Return partial updates only, not the full state object.
+仅返回部分更新，不要返回完整的状态对象。
 
 ```typescript
-// WRONG: Returning entire state
+// 错误写法：返回整个状态
 const myNode = async (state: typeof State.State) => {
   state.field = "updated";
-  return state;  // Don't do this!
+  return state;  // 切勿这样做！
 };
 
-// CORRECT: Return partial updates
+// 正确写法：返回部分更新
 const myNode = async (state: typeof State.State) => {
   return { field: "updated" };
 };
@@ -166,19 +166,19 @@ const myNode = async (state: typeof State.State) => {
 
 ---
 
-## Nodes
+## 节点 (Nodes)
 
 <node-function-signatures>
 
-Node functions accept these arguments:
+节点函数支持接收以下参数：
 
 <python>
 
-| Signature | When to Use |
-|-----------|-------------|
-| `def node(state: State)` | Simple nodes that only need state |
-| `def node(state: State, config: RunnableConfig)` | Need thread_id, tags, or configurable values |
-| `def node(state: State, runtime: Runtime[Context])` | Need runtime context, store, or stream_writer |
+| 签名 | 适用场景 |
+|---|---|
+| `def node(state: State)` | 仅需访问状态的简单节点 |
+| `def node(state: State, config: RunnableConfig)` | 需要 `thread_id`、标签 (tags) 或可配置参数 |
+| `def node(state: State, runtime: Runtime[Context])` | 需要运行时上下文、store 或 `stream_writer` |
 
 ```python
 from langchain_core.runnables import RunnableConfig
@@ -198,10 +198,10 @@ def node_with_runtime(state: State, runtime: Runtime[Context]):
 </python>
 <typescript>
 
-| Signature | When to Use |
-|-----------|-------------|
-| `(state) => {...}` | Simple nodes that only need state |
-| `(state, config) => {...}` | Need thread_id, tags, or configurable values |
+| 签名 | 适用场景 |
+|---|---|
+| `(state) => {...}` | 仅需访问状态的简单节点 |
+| `(state, config) => {...}` | 需要 `thread_id`、标签 (tags) 或可配置参数 |
 
 ```typescript
 import { GraphNode, StateSchema } from "@langchain/langgraph";
@@ -221,22 +221,22 @@ const nodeWithConfig: GraphNode<typeof State> = (state, config) => {
 
 ---
 
-## Edges
+## 边 (Edges)
 
 <edge-type-selection>
 
-| Need | Edge Type | When to Use |
-|------|-----------|-------------|
-| Always go to same node | `add_edge()` | Fixed, deterministic flow |
-| Route based on state | `add_conditional_edges()` | Dynamic branching |
-| Update state AND route | `Command` | Combine logic in single node |
-| Fan-out to multiple nodes | `Send` | Parallel processing with dynamic inputs |
+| 需求 | 边类型 | 适用场景 |
+|---|---|---|
+| 始终流向同一节点 | `add_edge()` | 固定、确定性的流程 |
+| 基于状态进行路由 | `add_conditional_edges()` | 动态分支 |
+| 同时更新状态并路由 | `Command` | 在单个节点内合并逻辑 |
+| 扇出到多个节点 | `Send` | 带有动态输入的并行处理 |
 
 </edge-type-selection>
 
 <ex-basic-graph>
 <python>
-Simple two-node graph with linear edges.
+包含线性边的简单双节点图。
 
 ```python
 from langgraph.graph import StateGraph, START, END
@@ -267,7 +267,7 @@ print(result["output"])  # "PROCESSED: HELLO"
 ```
 </python>
 <typescript>
-Chain nodes with addEdge and compile before invoking.
+使用 `addEdge` 串联节点，并在调用前进行编译。
 
 ```typescript
 import { StateGraph, StateSchema, START, END } from "@langchain/langgraph";
@@ -302,7 +302,7 @@ console.log(result.output);  // "PROCESSED: HELLO"
 
 <ex-conditional-edges>
 <python>
-Route to different nodes based on state with conditional edges.
+使用条件边根据状态路由到不同的节点。
 
 ```python
 from typing import Literal
@@ -335,7 +335,7 @@ graph = (
 ```
 </python>
 <typescript>
-addConditionalEdges routes based on function return value.
+`addConditionalEdges` 根据函数的返回值进行路由。
 
 ```typescript
 import { StateGraph, StateSchema, START, END } from "@langchain/langgraph";
@@ -373,14 +373,14 @@ const graph = new StateGraph(State)
 
 ## Command
 
-Command combines state updates and routing in a single return value. Fields:
-- **`update`**: State updates to apply (like returning a dict from a node)
-- **`goto`**: Node name(s) to navigate to next
-- **`resume`**: Value to resume after `interrupt()` — see human-in-the-loop skill
+`Command` 将状态更新和路由逻辑整合在单个返回值中。字段说明：
+- **`update`**：要应用的状态更新（类似于从节点返回字典）
+- **`goto`**：下一步要跳转的目标节点名称（可为单个或多个）
+- **`resume`**：在 `interrupt()` 之后恢复执行时传入的值 —— 参见人机协作 (HITL) 技能
 
 <ex-command-state-and-routing>
 <python>
-Command lets you update state AND choose next node in one return.
+通过 `Command`，可以在单次返回中同时更新状态并指定下一个节点。
 
 ```python
 from langgraph.types import Command
@@ -391,7 +391,7 @@ class State(TypedDict):
     result: str
 
 def node_a(state: State) -> Command[Literal["node_b", "node_c"]]:
-    """Update state AND decide next node in one return."""
+    """在单次返回中更新状态并决定下一个跳转的节点。"""
     new_count = state["count"] + 1
     if new_count > 5:
         return Command(update={"count": new_count}, goto="node_c")
@@ -410,7 +410,7 @@ graph = (
 ```
 </python>
 <typescript>
-Return Command with update and goto to combine state change with routing.
+返回带有 `update` 和 `goto` 的 `Command`，将状态更改与路由整合在一起。
 
 ```typescript
 import { StateGraph, StateSchema, START, END, Command } from "@langchain/langgraph";
@@ -443,15 +443,15 @@ const graph = new StateGraph(State)
 
 <command-return-type-annotations>
 
-**Python**: Use `Command[Literal["node_a", "node_b"]]` as the return type annotation to declare valid goto destinations.
+**Python**：使用 `Command[Literal["node_a", "node_b"]]` 作为返回类型注解，以声明合法的 `goto` 跳转目标。
 
-**TypeScript**: Pass `{ ends: ["node_a", "node_b"] }` as the third argument to `addNode` to declare valid goto destinations.
+**TypeScript**：将 `{ ends: ["node_a", "node_b"] }` 作为第三个参数传给 `addNode`，以声明合法的 `goto` 跳转目标。
 
 </command-return-type-annotations>
 
 <warning-command-static-edges>
 
-**Warning**: `Command` only adds **dynamic** edges — static edges defined with `add_edge` / `addEdge` still execute. If `node_a` returns `Command(goto="node_c")` and you also have `graph.add_edge("node_a", "node_b")`, **both** `node_b` and `node_c` will run.
+**警告**：`Command` 仅添加**动态**边 —— 使用 `add_edge` / `addEdge` 定义的静态边仍会照常执行。如果 `node_a` 返回了 `Command(goto="node_c")`，同时图中存在 `graph.add_edge("node_a", "node_b")`，那么 `node_b` 和 `node_c` **都会**被执行。
 
 </warning-command-static-edges>
 
@@ -459,11 +459,11 @@ const graph = new StateGraph(State)
 
 ## Send API
 
-Fan-out with `Send`: return `[Send("worker", {...})]` from a conditional edge to spawn parallel workers. Requires a reducer on the results field.
+使用 `Send` 实现扇出 (Fan-out)：从条件边返回 `[Send("worker", {...})]` 以派生并行 Worker。这要求在结果字段上配置 Reducer。
 
 <ex-orchestrator-worker>
 <python>
-Fan out tasks to parallel workers using the Send API and aggregate results.
+使用 Send API 将任务分发给并行 Worker 并聚合结果。
 
 ```python
 from langgraph.types import Send
@@ -476,7 +476,7 @@ class OrchestratorState(TypedDict):
     summary: str
 
 def orchestrator(state: OrchestratorState):
-    """Fan out tasks to workers."""
+    """将任务分发给 Worker。"""
     return [Send("worker", {"task": task}) for task in state["tasks"]]
 
 def worker(state: dict) -> dict:
@@ -499,7 +499,7 @@ result = graph.invoke({"tasks": ["Task A", "Task B", "Task C"]})
 ```
 </python>
 <typescript>
-Fan out tasks to parallel workers using the Send API and aggregate results.
+使用 Send API 将任务分发给并行 Worker 并聚合结果。
 
 ```typescript
 import { Send, StateGraph, StateSchema, ReducedValue, START, END } from "@langchain/langgraph";
@@ -539,26 +539,26 @@ const graph = new StateGraph(State)
 
 <fix-send-accumulator>
 <python>
-Use a reducer to accumulate parallel worker results (otherwise last worker overwrites).
+使用 Reducer 聚合并行 Worker 的结果（否则最后一个 Worker 会覆盖其他 Worker 的结果）。
 
 ```python
-# WRONG: No reducer - last worker overwrites
+# 错误写法：没有 Reducer - 最后一个 Worker 会覆盖其他结果
 class State(TypedDict):
     results: list
 
-# CORRECT
+# 正确写法
 class State(TypedDict):
-    results: Annotated[list, operator.add]  # Accumulates
+    results: Annotated[list, operator.add]  # 自动累加聚合
 ```
 </python>
 <typescript>
-Use ReducedValue to accumulate parallel worker results.
+使用 `ReducedValue` 聚合并行 Worker 的结果。
 
 ```typescript
-// WRONG: No reducer
+// 错误写法：没有 Reducer
 const State = new StateSchema({ results: z.array(z.string()) });
 
-// CORRECT
+// 正确写法
 const State = new StateSchema({
   results: new ReducedValue(z.array(z.string()).default(() => []), { reducer: (curr, upd) => curr.concat(upd) }),
 });
@@ -568,17 +568,17 @@ const State = new StateSchema({
 
 ---
 
-## Running Graphs: Invoke and Stream
+## 运行图：Invoke 与 Stream
 
 <invoke-basics>
 
-Call `graph.invoke(input, config)` to run a graph to completion and return the final state.
+调用 `graph.invoke(input, config)` 会运行图直到执行完毕，并返回最终状态。
 
 <python>
 
 ```python
 result = graph.invoke({"input": "hello"})
-# With config (for persistence, tags, etc.)
+# 携带 config 配置（用于持久化、标签等）
 result = graph.invoke({"input": "hello"}, {"configurable": {"thread_id": "1"}})
 ```
 </python>
@@ -586,7 +586,7 @@ result = graph.invoke({"input": "hello"}, {"configurable": {"thread_id": "1"}})
 
 ```typescript
 const result = await graph.invoke({ input: "hello" });
-// With config
+// 携带 config 配置
 const result = await graph.invoke({ input: "hello" }, { configurable: { thread_id: "1" } });
 ```
 </typescript>
@@ -595,18 +595,18 @@ const result = await graph.invoke({ input: "hello" }, { configurable: { thread_i
 
 <stream-mode-selection>
 
-| Mode | What it Streams | Use Case |
-|------|----------------|----------|
-| `values` | Full state after each step | Monitor complete state |
-| `updates` | State deltas | Track incremental updates |
-| `messages` | LLM tokens + metadata | Chat UIs |
-| `custom` | User-defined data | Progress indicators |
+| 模式 | 流式传输内容 | 适用场景 |
+|---|---|---|
+| `values` | 每一步执行后的完整状态 | 监控完整状态 |
+| `updates` | 状态增量变更 (deltas) | 追踪增量更新 |
+| `messages` | LLM Token 与元数据 | 聊天 UI 界面 |
+| `custom` | 用户自定义数据 | 进度指示器 |
 
 </stream-mode-selection>
 
 <ex-stream-llm-tokens>
 <python>
-Stream LLM tokens in real-time for chat UI display.
+实时流式传输 LLM Token，以便在聊天 UI 中展示。
 
 ```python
 for chunk in graph.stream(
@@ -619,7 +619,7 @@ for chunk in graph.stream(
 ```
 </python>
 <typescript>
-Stream LLM tokens in real-time for chat UI display.
+实时流式传输 LLM Token，以便在聊天 UI 中展示。
 
 ```typescript
 for await (const chunk of graph.stream(
@@ -637,7 +637,7 @@ for await (const chunk of graph.stream(
 
 <ex-stream-custom-data>
 <python>
-Emit custom progress updates from within nodes using the stream writer.
+在节点内使用 Stream Writer 发送自定义进度更新。
 
 ```python
 from langgraph.config import get_stream_writer
@@ -645,7 +645,7 @@ from langgraph.config import get_stream_writer
 def my_node(state):
     writer = get_stream_writer()
     writer("Processing step 1...")
-    # Do work
+    # 执行任务
     writer("Complete!")
     return {"result": "done"}
 
@@ -654,7 +654,7 @@ for chunk in graph.stream({"data": "test"}, stream_mode="custom"):
 ```
 </python>
 <typescript>
-Emit custom progress updates from within nodes using the stream writer.
+在节点内使用 Stream Writer 发送自定义进度更新。
 
 ```typescript
 import { getWriter } from "@langchain/langgraph";
@@ -662,7 +662,7 @@ import { getWriter } from "@langchain/langgraph";
 const myNode = async (state: typeof State.State) => {
   const writer = getWriter();
   writer("Processing step 1...");
-  // Do work
+  // 执行任务
   writer("Complete!");
   return { result: "done" };
 };
@@ -676,24 +676,24 @@ for await (const chunk of graph.stream({ data: "test" }, { streamMode: "custom" 
 
 ---
 
-## Error Handling
+## 错误处理 (Error Handling)
 
-Match the error type to the right handler:
+将错误类型与正确的处理策略相匹配：
 
 <error-handling-table>
 
-| Error Type | Who Fixes | Strategy | Example |
+| 错误类型 | 解决方 | 策略 | 示例 |
 |---|---|---|---|
-| Transient (network, rate limits) | System | `RetryPolicy(max_attempts=3)` | `add_node(..., retry_policy=...)` |
-| LLM-recoverable (tool failures) | LLM | `ToolNode(tools, handle_tool_errors=True)` | Error returned as ToolMessage |
-| User-fixable (missing info) | Human | `interrupt({"message": ...})` | Collect missing data (see HITL skill) |
-| Unexpected | Developer | Let bubble up | `raise` |
+| 瞬态错误（网络抖动、速率限制） | 系统 | `RetryPolicy(max_attempts=3)` | `add_node(..., retry_policy=...)` |
+| LLM 可恢复错误（工具调用失败） | LLM | `ToolNode(tools, handle_tool_errors=True)` | 错误作为 `ToolMessage` 返回 |
+| 用户可修复错误（缺失信息） | 人工 | `interrupt({"message": ...})` | 收集缺失数据（参见 HITL 技能） |
+| 非预期错误 | 开发者 | 向外冒泡 | `raise` |
 
 </error-handling-table>
 
 <ex-retry-policy>
 <python>
-Use RetryPolicy for transient errors (network issues, rate limits).
+针对瞬态错误（网络问题、速率限制）使用 `RetryPolicy`。
 
 ```python
 from langgraph.types import RetryPolicy
@@ -706,7 +706,7 @@ workflow.add_node(
 ```
 </python>
 <typescript>
-Use retryPolicy for transient errors.
+针对瞬态错误使用 `retryPolicy`。
 
 ```typescript
 workflow.addNode(
@@ -722,7 +722,7 @@ workflow.addNode(
 
 <ex-tool-node-error-handling>
 <python>
-Use ToolNode from langgraph.prebuilt to handle tool execution and errors. When handle_tool_errors=True, errors are returned as ToolMessages so the LLM can recover.
+使用 `langgraph.prebuilt` 中的 `ToolNode` 处理工具执行及错误。当 `handle_tool_errors=True` 时，错误将作为 `ToolMessage` 返回，以便 LLM 进行自我修正。
 
 ```python
 from langgraph.prebuilt import ToolNode
@@ -733,7 +733,7 @@ workflow.add_node("tools", tool_node)
 ```
 </python>
 <typescript>
-Use ToolNode from @langchain/langgraph/prebuilt to handle tool execution and errors. When handleToolErrors is true, errors are returned as ToolMessages so the LLM can recover.
+使用 `@langchain/langgraph/prebuilt` 中的 `ToolNode` 处理工具执行及错误。当 `handleToolErrors` 为 `true` 时，错误将作为 `ToolMessage` 返回，以便 LLM 进行自我修正。
 
 ```typescript
 import { ToolNode } from "@langchain/langgraph/prebuilt";
@@ -747,29 +747,29 @@ workflow.addNode("tools", toolNode);
 
 ---
 
-## Common Fixes
+## 常见问题修复
 
 <fix-compile-before-execution>
 <python>
-Must compile() to get executable graph.
+必须调用 `compile()` 生成可执行的图。
 
 ```python
-# WRONG
-builder.invoke({"input": "test"})  # AttributeError!
+# 错误写法
+builder.invoke({"input": "test"})  # 抛出 AttributeError！
 
-# CORRECT
+# 正确写法
 graph = builder.compile()
 graph.invoke({"input": "test"})
 ```
 </python>
 <typescript>
-Must compile() to get executable graph.
+必须调用 `compile()` 生成可执行的图。
 
 ```typescript
-// WRONG
+// 错误写法
 await builder.invoke({ input: "test" });
 
-// CORRECT
+// 正确写法
 const graph = builder.compile();
 await graph.invoke({ input: "test" });
 ```
@@ -778,66 +778,66 @@ await graph.invoke({ input: "test" });
 
 <fix-infinite-loop-needs-exit>
 <python>
-Provide conditional path to END to avoid infinite loops.
+提供通往 `END` 的条件路径以避免死循环。
 
 ```python
-# WRONG: Loops forever
+# 错误写法：无限循环
 builder.add_edge("node_a", "node_b")
 builder.add_edge("node_b", "node_a")
 
-# CORRECT
+# 正确写法
 def should_continue(state):
     return END if state["count"] > 10 else "node_b"
 builder.add_conditional_edges("node_a", should_continue)
 ```
 </python>
 <typescript>
-Use conditional edges with END return to break loops.
+使用返回 `END` 的条件边来跳出循环。
 
 ```typescript
-// WRONG: Loops forever
+// 错误写法：无限循环
 builder.addEdge("node_a", "node_b").addEdge("node_b", "node_a");
 
-// CORRECT
+// 正确写法
 builder.addConditionalEdges("node_a", (state) => state.count > 10 ? END : "node_b");
 ```
 </typescript>
 </fix-infinite-loop-needs-exit>
 
 <fix-common-mistakes>
-Other common mistakes:
+其他常见错误：
 
 ```python
-# Router must return names of nodes that exist in the graph
-builder.add_node("my_node", func)  # Add node BEFORE referencing in edges
+# 路由函数返回的节点名称必须已存在于图中
+builder.add_node("my_node", func)  # 在边中引用之前必须先添加节点
 builder.add_conditional_edges("node_a", router, ["my_node"])
 
-# Command return type needs Literal for routing destinations (Python)
+# Python 中 Command 的返回类型需要用 Literal 标注合法的路由目标
 def node_a(state) -> Command[Literal["node_b", "node_c"]]:
     return Command(goto="node_b")
 
-# START is entry-only - cannot route back to it
-builder.add_edge("node_a", START)  # WRONG!
-builder.add_edge("node_a", "entry")  # Use a named entry node instead
+# START 仅作为入口使用 —— 不能将边路由回 START
+builder.add_edge("node_a", START)  # 错误！
+builder.add_edge("node_a", "entry")  # 请使用具名的入口节点代替
 
-# Reducer expects matching types
-return {"items": ["item"]}  # List for list reducer, not a string
+# Reducer 要求类型匹配
+return {"items": ["item"]}  # 对于列表 Reducer 请传入 List，而不是普通字符串
 ```
 
 ```typescript
-// Always await graph.invoke() - it returns a Promise
+// 始终 await graph.invoke() —— 它返回一个 Promise
 const result = await graph.invoke({ input: "test" });
 
-// TS Command nodes need { ends } to declare routing destinations
+// TS 中的 Command 节点需要传入 { ends } 来声明路由目标
 builder.addNode("router", routerFn, { ends: ["node_b", "node_c"] });
 ```
 </fix-common-mistakes>
 
 <boundaries>
-### What You Should NOT Do
+### 禁止事项 (What You Should NOT Do)
 
-- Mutate state directly — always return partial update dicts from nodes
-- Route back to START — it's entry-only; use a named node instead
-- Forget reducers on list fields — without one, last write wins
-- Mix static edges with Command goto without understanding both will execute
+- 直接修改状态 (Mutate state) —— 务必从节点返回部分更新字典
+- 将边路由回 `START` —— `START` 仅作为入口，请改用具名节点
+- 遗漏列表字段的 Reducer —— 没有 Reducer 时，最后一次写入会覆盖先前的值
+- 在未理解其均会执行的情况下混用静态边与 `Command.goto`
 </boundaries>

@@ -1,75 +1,75 @@
-# Verifier Design
+# 验证器设计（Verifier Design）
 
-Prefer programmatic verification. Use an LLM judge only when the remaining success question is semantic. Keep the verifier focused on the selected capability.
+优先采用以程序化方式进行验证。仅当剩余的成功判定涉及语义理解时，才使用大语言模型（LLM）裁判。确保验证器始终聚焦于选定的核心能力。
 
-## Write one rubric
+## 编写单一评估标准（Rubric）
 
-Start with:
+以如下格式开头：
 
 ~~~text
-Pass iff [the independently observable successful outcome].
+Pass iff [可独立观察到的成功结果].
 ~~~
 
-Give the judge:
+提供给裁判的内容包括：
 
-- the final artifact whose meaning remains unresolved;
-- only the independent evidence needed to assess it;
-- a short rubric;
-- a strict output schema containing a verdict and concise reason.
+- 语义尚未确定的最终产物；
+- 评估该产物所必需的独立证据（且仅提供必要证据）；
+- 简明扼要的评估标准（rubric）；
+- 严格的输出 Schema，包含裁决结果（verdict）和简明理由。
 
-Ask the judge to assess the result, not whether it matches a reference answer or preferred process. Accept different valid approaches and wording.
+要求裁判评估最终结果本身，而非评估其是否与参考答案匹配或是否遵循了偏好的流程。应允许采用不同的有效方法和措辞表述。
 
-Use one primary verdict. Use code for objective facts: required recipients, counts, state changes, prohibited writes, artifacts, tests, and independently recomputed results. Run those checks before the judge and do not ask the judge to re-grade them. Use an LLM judge only when success is semantic, such as whether a claim is supported by supplied sources. Calibrate a judge rubric instead of adding separate proxy scores. Deterministic gates may contribute only when they establish an objective fact required by Pass iff.
+使用单一的主要判定结果。使用代码来验证客观事实：必需的接收者、数量计数、状态变更、禁止的写操作、生成产物、测试用例以及独立重新计算的结果。在调用裁判之前运行这些检查，不要要求裁判重新对此类事实进行评分。仅在成功判定涉及语义时使用 LLM 裁判，例如断言是否有提供的数据源作为支持。直接校准裁判的评估标准，而不是引入额外的代理分数（proxy scores）。确定性门禁（Deterministic gates）只有在确立了 `Pass iff` 所要求的客观事实时方可计入判定。
 
-Do not approximate semantic correctness with keywords, substrings, or required identifiers. For example, checking for `Starter` cannot distinguish “the account is on Starter” from “the account is not on Starter,” and requiring an account ID can reject a correct pronoun-based answer. Judge the supported meaning instead.
+切勿通过关键字、子字符串或必需的标识符来近似评估语义正确性。例如，仅检查是否包含 `Starter` 无法区分“该账户为 Starter 方案”与“该账户不是 Starter 方案”；而强制要求账户 ID 可能会误判基于代词表达的正确答案。应当针对有证据支撑的实际语义进行评判。
 
-## Match evidence to the outcome
+## 使证据与结果相匹配
 
-- Retrieval or Q&A: classify decision-changing claims as supported, contradicted, or unsupported against the supplied sources; citations alone do not prove support.
-- Analysis: provide the independently recomputed result, required filters, and tolerances; judge the conclusion and material caveats.
-- Coding: use behavior and regression tests for correctness; use the judge only for semantic requirements tests cannot decide.
-- Stateful work: decide required and prohibited changes from observed initial/final state; ignore unrelated fields unless collateral effects are part of the capability.
-- Tool use: default to final Environment state. Use Harness-recorded calls only when the task requires an action or session property that final state cannot establish; never accept an agent-authored tool-use list as proof.
+- 检索或问答（Q&A）：对照提供的数据源，将影响决策的断言分类为“有支持（supported）”、“相矛盾（contradicted）”或“无支持（unsupported）”；仅有引用并不等同于有证据支持。
+- 分析（Analysis）：提供独立重新计算的结果、必需的过滤条件和容差范围；评判其得出的结论及关键注意事项。
+- 编程（Coding）：使用行为测试和回归测试来验证正确性；仅将裁判用于测试用例无法判定的语义要求。
+- 有状态任务（Stateful work）：通过观察到的初始/最终状态来判定必需的和禁止的变更；忽略无关字段，除非附带效应属于该能力评估的一部分。
+- 工具使用（Tool use）：默认基于最终的环境（Environment）状态进行判断。仅在任务需要最终状态无法证明的操作或会话属性时，才使用 Harness 记录的调用日志；绝不能将智能体自行编写的工具调用列表作为证明依据。
 
-The Verifier may share state schemas with the Environment, but it must not reuse the Environment's success helper or trust a service-provided success flag. Determine the required outcome independently from raw evidence.
+验证器（Verifier）可以与环境共享状态 Schema，但绝不能复用环境的成功辅助函数（success helper），也不能信任服务提供的成功标志。必须基于原始证据独立判定是否达成所需结果。
 
-## Use deterministic gates narrowly
+## 严格限制确定性门禁的使用范围
 
-Code should decide objective facts:
+代码应当仅用于判定客观事实：
 
-- execution or tests passed;
-- output parsed;
-- required artifact exists;
-- required or prohibited state change occurred.
+- 执行或测试是否通过；
+- 输出是否成功解析；
+- 必需的产物是否存在；
+- 是否发生了必需的或禁止的状态变更。
 
-Do not use an LLM for those facts. Never add response length, keywords, citation count, exact phrasing, tool-call count, update count, or reference similarity as reward conditions unless that property is explicitly the selected capability.
+不要使用 LLM 判定上述事实。绝不能将回复长度、关键字、引用数量、完全匹配的措辞、工具调用次数、更新次数或与参考答案的相似度作为奖励条件，除非该属性明确属于被评估的核心能力。
 
-## Test the verifier
+## 测试验证器
 
-Before the Harness run, execute focused, realistic fixtures in the same Verifier image and command used by Harbor. Derive them from supplied traces, prior eval runs, or production-like task variants—not toy strings. Retain their results in logs or artifacts:
+在执行 Harness 运行之前，使用与 Harbor 相同的验证器镜像和命令执行针对性、高真实度的测试用例（fixtures）。这些用例应派生自提供的执行轨迹（traces）、先前的评测运行或接近生产环境的任务变体——而非简单的玩具字符串（toy strings）。将测试结果保留在日志或产物中：
 
-| Case | Expected |
+| 测试用例 | 预期结果 |
 |---|---|
-| Clear capable result, including a valid paraphrase | pass |
-| Realistic wrong result for this capability | fail |
+| 明确具备该能力的有效结果，包括合理的意译表述 | pass |
+| 针对该能力的高真实度错误结果 | fail |
 
-These are Verifier tests, not agent runs. Add a boundary case when an equivalent valid outcome might be rejected or a plausible hidden preference might pass. Add another fixture only for a specific risk, such as a plausible negation, an unsupported material claim, or instructions embedded in agent output. If a wrong case passes or a valid case fails, fix the rubric or evidence and rerun. Confirm the Verifier image contains every fixture and calibration file it invokes.
+这些是针对验证器本身的测试，而非智能体的运行测试。当存在等效的有效结果可能被误判，或者某种看似合理的隐藏偏好可能被误放行时，添加边界用例。仅在存在特定风险时才添加额外的 fixture，例如看似合理的否定句、缺乏支持的关键断言或嵌入在智能体输出中的注入指令。如果错误用例通过判定或有效用例判定失败，请修正评估标准或证据并重新运行。确认验证器镜像中包含了其调用的所有 fixture 和校准文件。
 
-If traces revealed a relevant wrong result, recreate its failure shape as a controlled negative fixture. Keep expected truth independent of the trace's recorded answer.
+如果执行轨迹中暴露了相关的错误结果，应将其失败模式重构为受控的负向 fixture。保持预期的真值（ground truth）独立于轨迹中记录的答案。
 
-For high-stakes or noisy grading, repeat the boundary cases and inspect variance. Do not create a broad test matrix by default.
+对于高风险或存在噪声的评分任务，重复测试边界用例并检查方差。默认情况下不要构建过于宽泛的测试矩阵。
 
-## Match validation to use
+## 根据使用场景匹配验证方式
 
-- Regression: define the pass boundary and retain the failed criterion.
-- Ranking: confirm reviewed better outputs score higher than worse outputs near the decision boundary.
-- Training reward: known cheats, fabricated actions, and contradicted claims must receive no positive reward.
+- 回归测试（Regression）：明确通过边界，并保留未通过的判定准则。
+- 排序（Ranking）：确认经过人工审查后更优的输出在决策边界附近的得分高于较差的输出。
+- 训练奖励（Training reward）：已知的作弊行为、伪造的操作以及自相矛盾的断言必须获得零奖励。
 
-## Failure semantics
+## 失败语义（Failure Semantics）
 
-- Invalid, missing, contradicted, or unsupported agent work: completed verdict with reward 0.
-- Judge timeout, invalid judge response, missing evidence, Verifier crash, or credential failure: infrastructure error with no agent score.
+- 无效、缺失、相矛盾或无支持的智能体产出：判定为已完成（completed），奖励为 0。
+- 裁判超时、裁判响应无效、证据缺失、验证器崩溃或凭证失效：判定为基础设施错误（infrastructure error），智能体无得分。
 
-After every completed zero, inspect the evidence and classify it as a fair agent failure, Verifier defect, Environment defect or leak, or infrastructure error. Repair the latter three before reporting an agent score.
+在每次得出完成但得分为零的结果后，检查证据并将其分类为：合理的智能体失败、验证器缺陷、环境缺陷或泄漏、或是基础设施错误。在报告智能体最终得分之前，必须修复后三类问题。
 
-Bound Harness-controlled text, files, and record counts before grading. Treat agent content as untrusted and instruct the judge to ignore embedded directions. Keep the rubric, judge credentials, and judge output unavailable to the Harness. Pin the judge model and record its version and reason in Harbor evidence.
+在评分前限制 Harness 控制的文本、文件和记录数量。将智能体生成的内容视为不可信内容，并指示裁判忽略其中嵌入的任何指令。确保 Harness 无法访问评估标准、裁判凭证和裁判输出。固定（Pin）裁判模型，并在 Harbor 证据中记录其版本和判定理由。

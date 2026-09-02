@@ -1,25 +1,25 @@
 ---
 name: langchain-middleware
-description: "INVOKE THIS SKILL when you need human-in-the-loop approval, custom middleware, or structured output. Covers HumanInTheLoopMiddleware for human approval of dangerous tool calls, creating custom middleware with hooks, Command resume patterns, and structured output with Pydantic/Zod."
+description: "当需要人机协同（HITL）审批、自定义中间件或结构化输出时调用此技能。涵盖用于危险工具调用人工审批的 HumanInTheLoopMiddleware、使用 Hook 创建自定义中间件、Command 恢复模式以及使用 Pydantic/Zod 的结构化输出。"
 ---
 
 <overview>
-Middleware patterns for production LangChain agents:
+生产级 LangChain Agent 的中间件模式：
 
-- **HumanInTheLoopMiddleware** / **humanInTheLoopMiddleware**: Pause before dangerous tool calls for human approval
-- **Custom middleware**: Intercept tool calls for error handling, logging, retry logic
-- **Command resume**: Continue execution after human decisions (approve, edit, reject)
+- **HumanInTheLoopMiddleware** / **humanInTheLoopMiddleware**：在执行危险工具调用前暂停，等待人工审批
+- **自定义中间件**：拦截工具调用以进行错误处理、日志记录和重试逻辑
+- **Command 恢复**：在人工做出决策（批准、编辑、拒绝）后继续执行
 
-**Requirements:** Checkpointer + thread_id config for all HITL workflows.
+**要求：** 所有 HITL 工作流都需要配置 Checkpointer + thread_id。
 </overview>
 
 ---
 
-## Human-in-the-Loop
+## 人机协同（Human-in-the-Loop）
 
 <ex-basic-hitl-setup>
 <python>
-Set up an agent with HITL middleware that pauses before sending emails for approval.
+设置带有 HITL 中间件的 Agent，在发送邮件前暂停以等待审批。
 
 ```python
 from langchain.agents import create_agent
@@ -29,13 +29,13 @@ from langchain.tools import tool
 
 @tool
 def send_email(to: str, subject: str, body: str) -> str:
-    """Send an email."""
+    """发送一封电子邮件。"""
     return f"Email sent to {to}"
 
 agent = create_agent(
     model="gpt-4.1",
     tools=[send_email],
-    checkpointer=MemorySaver(),  # Required for HITL
+    checkpointer=MemorySaver(),  # HITL 必须
     middleware=[
         HumanInTheLoopMiddleware(
             interrupt_on={
@@ -47,7 +47,7 @@ agent = create_agent(
 ```
 </python>
 <typescript>
-Set up an agent with HITL that pauses before sending emails for human approval.
+设置带有 HITL 的 Agent，在发送邮件前暂停以等待人工审批。
 
 ```typescript
 import { createAgent, humanInTheLoopMiddleware } from "langchain";
@@ -80,23 +80,23 @@ const agent = createAgent({
 
 <ex-running-with-interrupts>
 <python>
-Run the agent, detect an interrupt, then resume execution after human approval.
+运行 Agent，检测中断，然后在人工审批后恢复执行。
 
 ```python
 from langgraph.types import Command
 
 config = {"configurable": {"thread_id": "session-1"}}
 
-# Step 1: Agent runs until it needs to call tool
+# 步骤 1：Agent 运行直至需要调用工具
 result1 = agent.invoke({
     "messages": [{"role": "user", "content": "Send email to john@example.com"}]
 }, config=config)
 
-# Check for interrupt
+# 检查是否存在中断
 if "__interrupt__" in result1:
     print(f"Waiting for approval: {result1['__interrupt__']}")
 
-# Step 2: Human approves
+# 步骤 2：人工批准
 result2 = agent.invoke(
     Command(resume={"decisions": [{"type": "approve"}]}),
     config=config
@@ -104,24 +104,24 @@ result2 = agent.invoke(
 ```
 </python>
 <typescript>
-Run the agent, detect an interrupt, then resume execution after human approval.
+运行 Agent，检测中断，然后在人工审批后恢复执行。
 
 ```typescript
 import { Command } from "@langchain/langgraph";
 
 const config = { configurable: { thread_id: "session-1" } };
 
-// Step 1: Agent runs until it needs to call tool
+// 步骤 1：Agent 运行直至需要调用工具
 const result1 = await agent.invoke({
   messages: [{ role: "user", content: "Send email to john@example.com" }]
 }, config);
 
-// Check for interrupt
+// 检查是否存在中断
 if (result1.__interrupt__) {
   console.log(`Waiting for approval: ${result1.__interrupt__}`);
 }
 
-// Step 2: Human approves
+// 步骤 2：人工批准
 const result2 = await agent.invoke(
   new Command({ resume: { decisions: [{ type: "approve" }] } }),
   config
@@ -132,10 +132,10 @@ const result2 = await agent.invoke(
 
 <ex-editing-tool-arguments>
 <python>
-Edit the tool arguments before approving when the original values need correction.
+当原始参数需要更正时，在批准前编辑工具参数。
 
 ```python
-# Human edits the arguments — edited_action must include name + args
+# 人工编辑参数 —— edited_action 必须包含 name + args
 result2 = agent.invoke(
     Command(resume={
         "decisions": [{
@@ -143,7 +143,7 @@ result2 = agent.invoke(
             "edited_action": {
                 "name": "send_email",
                 "args": {
-                    "to": "alice@company.com",  # Fixed email
+                    "to": "alice@company.com",  # 修正后的邮箱
                     "subject": "Project Meeting - Updated",
                     "body": "...",
                 },
@@ -155,10 +155,10 @@ result2 = agent.invoke(
 ```
 </python>
 <typescript>
-Edit the tool arguments before approving when the original values need correction.
+当原始参数需要更正时，在批准前编辑工具参数。
 
 ```typescript
-// Human edits the arguments — editedAction must include name + args
+// 人工编辑参数 —— editedAction 必须包含 name + args
 const result2 = await agent.invoke(
   new Command({
     resume: {
@@ -167,7 +167,7 @@ const result2 = await agent.invoke(
         editedAction: {
           name: "send_email",
           args: {
-            to: "alice@company.com",  // Fixed email
+            to: "alice@company.com",  // 修正后的邮箱
             subject: "Project Meeting - Updated",
             body: "...",
           },
@@ -183,10 +183,10 @@ const result2 = await agent.invoke(
 
 <ex-rejecting-with-feedback>
 <python>
-Reject a tool call and provide feedback explaining why it was rejected.
+拒绝工具调用并提供反馈以解释拒绝原因。
 
 ```python
-# Human rejects
+# 人工拒绝
 result2 = agent.invoke(
     Command(resume={
         "decisions": [{
@@ -202,7 +202,7 @@ result2 = agent.invoke(
 
 <ex-multiple-tools-different-policies>
 <python>
-Configure different HITL policies for each tool based on risk level.
+根据风险等级为每个工具配置不同的 HITL 策略。
 
 ```python
 agent = create_agent(
@@ -213,8 +213,8 @@ agent = create_agent(
         HumanInTheLoopMiddleware(
             interrupt_on={
                 "send_email": {"allowed_decisions": ["approve", "edit", "reject"]},
-                "delete_email": {"allowed_decisions": ["approve", "reject"]},  # No edit
-                "read_email": False,  # No HITL for reading
+                "delete_email": {"allowed_decisions": ["approve", "reject"]},  # 不允许编辑
+                "read_email": False,  # 读取操作不需要 HITL
             }
         )
     ],
@@ -224,26 +224,26 @@ agent = create_agent(
 </ex-multiple-tools-different-policies>
 
 <boundaries>
-### What You CAN Configure
+### 支持配置的功能
 
-- Which tools require approval (per-tool policies)
-- Allowed decisions per tool (approve, edit, reject)
-- Custom middleware hooks: `before_model`, `after_model`, `wrap_tool_call`, `before_agent`, `after_agent`
-- Tool-specific middleware (apply only to certain tools)
+- 哪些工具需要审批（针对单个工具的策略）
+- 每个工具允许的决策类型（approve、edit、reject）
+- 自定义中间件 Hook：`before_model`、`after_model`、`wrap_tool_call`、`before_agent`、`after_agent`
+- 工具级中间件（仅应用于特定工具）
 </boundaries>
 
 ---
 
-## Custom Middleware Hooks
+## 自定义中间件 Hook
 
-Six decorator hooks are available. Two patterns:
+提供六个装饰器 Hook，分为两种模式：
 
-- **Wrap hooks** (`wrap_tool_call`, `wrap_model_call`): `(request, handler)` — call `handler(request)` to proceed, or return early to short-circuit.
-- **Before/after hooks** (`before_model`, `after_model`, `before_agent`, `after_agent`): `(state, runtime)` — inspect or modify state. Return `None` or a dict of state updates.
+- **包装型 Hook（Wrap hooks）**（`wrap_tool_call`、`wrap_model_call`）：`(request, handler)` —— 调用 `handler(request)` 继续执行，或提前返回以短路中断。
+- **前置/后置 Hook（Before/after hooks）**（`before_model`、`after_model`、`before_agent`、`after_agent`）：`(state, runtime)` —— 检查或修改状态。返回 `None` 或包含状态更新的字典。
 
 <ex-wrap-tool-call>
 <python>
-`@wrap_tool_call` intercepts tool execution. **Do NOT use `yield`** — it creates a generator and causes `NotImplementedError`.
+`@wrap_tool_call` 用于拦截工具执行。**请勿使用 `yield`** —— 它会创建生成器并导致 `NotImplementedError`。
 
 ```python
 from langchain.agents.middleware import wrap_tool_call
@@ -260,12 +260,12 @@ def retry_middleware(request, handler):
 @wrap_tool_call
 def guard_middleware(request, handler):
     if request.tool_call["name"] == "dangerous_tool":
-        return "This tool is disabled"  # short-circuit
+        return "This tool is disabled"  # 短路中断
     return handler(request)
 ```
 </python>
 <typescript>
-`createMiddleware({ wrapToolCall })` intercepts tool execution.
+`createMiddleware({ wrapToolCall })` 用于拦截工具执行。
 
 ```typescript
 import { createMiddleware } from "langchain";
@@ -284,7 +284,7 @@ const retryMiddleware = createMiddleware({
 
 <ex-before-after-hooks>
 <python>
-`before_model` / `after_model` / `before_agent` / `after_agent` all share `(state, runtime)` signature.
+`before_model` / `after_model` / `before_agent` / `after_agent` 均采用 `(state, runtime)` 签名。
 
 ```python
 from langchain.agents.middleware import before_model, after_model
@@ -299,7 +299,7 @@ def check_output(state, runtime):
 ```
 </python>
 <typescript>
-All before/after hooks share the same `(state, runtime)` signature via `createMiddleware`.
+所有前置/后置 Hook 在 `createMiddleware` 中均采用相同的 `(state, runtime)` 签名。
 
 ```typescript
 import { createMiddleware } from "langchain";
@@ -317,39 +317,39 @@ const loggingMiddleware = createMiddleware({
 </ex-before-after-hooks>
 
 <boundaries>
-### What You CANNOT Configure
+### 不支持配置的功能
 
-- Interrupt after tool execution (must be before)
-- Skip checkpointer requirement for HITL
+- 在工具执行后中断（必须在执行前中断）
+- 在 HITL 中跳过 Checkpointer 的要求
 </boundaries>
 
 <fix-missing-checkpointer>
 <python>
-HITL middleware requires a checkpointer to persist state.
+HITL 中间件需要 Checkpointer 来持久化状态。
 
 ```python
-# WRONG
+# 错误
 agent = create_agent(model="gpt-4.1", tools=[send_email], middleware=[HumanInTheLoopMiddleware({...})])
 
-# CORRECT
+# 正确
 agent = create_agent(
     model="gpt-4.1", tools=[send_email],
-    checkpointer=MemorySaver(),  # Required
+    checkpointer=MemorySaver(),  # 必需
     middleware=[HumanInTheLoopMiddleware({...})]
 )
 ```
 </python>
 <typescript>
-HITL requires a checkpointer to persist state.
+HITL 需要 Checkpointer 来持久化状态。
 
 ```typescript
-// WRONG: No checkpointer
+// 错误：缺少 checkpointer
 const agent = createAgent({
   model: "anthropic:claude-sonnet-4-5", tools: [sendEmail],
   middleware: [humanInTheLoopMiddleware({ interruptOn: { send_email: true } })],
 });
 
-// CORRECT: Add checkpointer
+// 正确：添加 checkpointer
 const agent = createAgent({
   model: "anthropic:claude-sonnet-4-5", tools: [sendEmail],
   checkpointer: new MemorySaver(),
@@ -361,13 +361,13 @@ const agent = createAgent({
 
 <fix-no-thread-id>
 <python>
-Always provide thread_id when using HITL to track conversation state.
+使用 HITL 时始终需要提供 thread_id 以跟踪对话状态。
 
 ```python
-# WRONG
-agent.invoke(input)  # No config!
+# 错误
+agent.invoke(input)  # 未传入 config！
 
-# CORRECT
+# 正确
 agent.invoke(input, config={"configurable": {"thread_id": "user-123"}})
 ```
 </python>
@@ -375,25 +375,25 @@ agent.invoke(input, config={"configurable": {"thread_id": "user-123"}})
 
 <fix-wrong-resume-syntax>
 <python>
-Use Command class to resume execution after an interrupt.
+在中断后使用 Command 类恢复执行。
 
 ```python
-# WRONG
+# 错误
 agent.invoke({"resume": {"decisions": [...]}})
 
-# CORRECT
+# 正确
 from langgraph.types import Command
 agent.invoke(Command(resume={"decisions": [{"type": "approve"}]}), config=config)
 ```
 </python>
 <typescript>
-Use Command class to resume execution after an interrupt.
+在中断后使用 Command 类恢复执行。
 
 ```typescript
-// WRONG
+// 错误
 await agent.invoke({ resume: { decisions: [...] } });
 
-// CORRECT
+// 正确
 import { Command } from "@langchain/langgraph";
 await agent.invoke(new Command({ resume: { decisions: [{ type: "approve" }] } }), config);
 ```

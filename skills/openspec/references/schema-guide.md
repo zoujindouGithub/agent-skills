@@ -17,7 +17,7 @@
 
 Schema 定义 OpenSpec 工作流中的**工件类型**和**依赖关系**。通过自定义 schema，你可以：
 
-- 添加/移除工件类型（如增加 review 步骤）
+- 添加/移除工件类型（如增加评审步骤）
 - 修改工件依赖关系
 - 自定义 AI 生成工件的提示模板
 - 适配团队特定流程
@@ -87,7 +87,7 @@ apply:
 
 | 字段 | 必需 | 说明 |
 |------|------|------|
-| `name` | 是 | Schema 名称（kebab-case） |
+| `name` | 是 | Schema 名称（短横线连字符命名法，kebab-case） |
 | `version` | 否 | Schema 版本号 |
 | `description` | 否 | Schema 描述 |
 
@@ -98,7 +98,7 @@ apply:
 | 字段 | 必需 | 说明 |
 |------|------|------|
 | `id` | 是 | 唯一标识符，用于命令和规则引用 |
-| `generates` | 是 | 输出文件名（支持 glob，如 `specs/**/*.md`） |
+| `generates` | 是 | 输出文件名（支持 glob 匹配，如 `specs/**/*.md`） |
 | `description` | 否 | 人类可读的描述 |
 | `template` | 否 | `templates/` 目录中的模板文件名 |
 | `instruction` | 否 | AI 生成此工件时的额外指令 |
@@ -117,13 +117,13 @@ apply:
 
 ### 模板位置
 
-模板存放在 `templates/` 目录，文件名与 `schema.yaml` 中 `template` 字段对应。
+模板存放在 `templates/` 目录，文件名与 `schema.yaml` 中的 `template` 字段对应。
 
 ### 模板内容
 
 模板是 Markdown 文件，包含：
-- 章节标题（AI 应填充）
-- HTML 注释（给 AI 的指导）
+- 章节标题（由 AI 填充）
+- HTML 注释（给 AI 的指导指令）
 - 示例格式（展示预期结构）
 
 ### 示例模板
@@ -208,15 +208,15 @@ apply:
 openspec schema fork spec-driven my-workflow
 ```
 
-这会复制整个 `spec-driven` schema 到 `openspec/schemas/my-workflow/`，你可以自由编辑。
+这会复制整个 `spec-driven` schema 到 `openspec/schemas/my-workflow/`，你可以自由进行编辑。
 
 ### 方法二：从零创建
 
 ```bash
-# 交互式
+# 交互式创建
 openspec schema init my-workflow
 
-# 非交互式
+# 非交互式创建
 openspec schema init rapid \
   --description "Rapid iteration workflow" \
   --artifacts "proposal,tasks" \
@@ -229,7 +229,7 @@ openspec schema init rapid \
 
 ### 模式一：极简工作流
 
-适合快速原型、个人项目：
+适合快速原型开发与个人项目：
 
 ```yaml
 name: rapid
@@ -260,9 +260,9 @@ apply:
   tracks: tasks.md
 ```
 
-### 模式二：增加 Review 步骤
+### 模式二：增加评审步骤
 
-适合需要预实现审查的团队：
+适合需要前置实现评审（Pre-implementation Review）的团队：
 
 ```yaml
 name: with-review
@@ -327,7 +327,7 @@ apply:
 
 ### 模式三：研究优先工作流
 
-适合探索性项目、技术调研：
+适合探索性项目与技术调研：
 
 ```yaml
 name: research-first
@@ -372,7 +372,7 @@ apply:
 
 ### 模式四：多规格能力工作流
 
-适合大型系统，按 capability 组织规格：
+适合大型系统，按 capability（能力领域）组织规格说明：
 
 ```yaml
 name: multi-capability
@@ -416,7 +416,7 @@ apply:
 
 ### 模式五：文档驱动工作流
 
-适合以文档更新为主的变更：
+适合以文档和内容更新为主的变更：
 
 ```yaml
 name: docs-driven
@@ -460,9 +460,9 @@ apply:
 openspec schema validate my-workflow
 ```
 
-检查：
+检查项：
 - `schema.yaml` 语法正确
-- 所有引用的模板存在
+- 所有引用的模板均存在
 - 无循环依赖
 - 工件 ID 有效
 
@@ -487,10 +487,10 @@ Schema 解析优先级：
 2. 用户级：`~/.local/share/openspec/schemas/<name>/`
 3. 包级：内置 schema
 
-如果自定义 schema 未生效，检查：
+如果自定义 schema 未生效，请检查：
 - 名称拼写是否正确
-- 文件是否在正确的目录
-- 是否有同名 schema 在更高优先级位置
+- 文件是否位于正确的目录
+- 是否存在同名 schema 位于更高优先级的位置
 
 ---
 
@@ -499,10 +499,10 @@ Schema 解析优先级：
 ### 使用自定义 Schema
 
 ```bash
-# 命令行指定
+# 通过命令行指定
 openspec new change feature --schema my-workflow
 
-# 设为项目默认（在 config.yaml 中）
+# 设为项目默认（在 config.yaml 中配置）
 schema: my-workflow
 
 # 设为全局默认
@@ -523,7 +523,7 @@ schema: my-workflow
 
 ## 高级：动态模板
 
-模板中可以使用占位符，在生成时被替换：
+模板中可以使用占位符，在生成时会被自动替换：
 
 ```markdown
 <!-- templates/proposal.md -->
@@ -538,7 +538,7 @@ schema: my-workflow
 <!-- Which capabilities are affected? -->
 ```
 
-**注意：** 占位符支持取决于 OpenSpec CLI 版本，请查阅最新文档确认。
+**注意：** 占位符支持取决于 OpenSpec CLI 的版本，请查阅最新文档进行确认。
 
 ---
 
@@ -552,8 +552,8 @@ OpenSpec 支持社区维护的 schema，通过独立仓库分发：
 
 使用社区 schema：
 
-1. 复制 schema  bundle 到 `openspec/schemas/<schema-name>/`
-2. 按仓库 README 中的安装说明操作
-3. 使用 `openspec schema validate <name>` 验证
+1. 将 schema bundle 复制到 `openspec/schemas/<schema-name>/`
+2. 按照仓库 README 中的安装说明进行操作
+3. 使用 `openspec schema validate <name>` 进行验证
 
-贡献社区 schema：在 GitHub 上开 issue 或提交 PR 添加到你的仓库链接。
+贡献社区 schema：在 GitHub 上提交 Issue 或发起 PR 以添加你的仓库链接。

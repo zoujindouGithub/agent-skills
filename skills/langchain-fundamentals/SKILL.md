@@ -1,26 +1,26 @@
 ---
 name: langchain-fundamentals
-description: Create LangChain agents with create_agent, define tools, and use middleware for human-in-the-loop and error handling.
+description: 使用 create_agent 创建 LangChain Agent，定义工具，并利用中间件实现人机协同（human-in-the-loop）和错误处理。
 ---
 
 <oneliner>
-Build production agents using `create_agent()`, middleware patterns, and the `@tool` decorator / `tool()` function. When creating LangChain agents, you MUST use create_agent(), with middleware for custom flows. All other alternatives are outdated.
+使用 `create_agent()`、中间件模式以及 `@tool` 装饰器 / `tool()` 函数构建生产级 Agent。创建 LangChain Agent 时，必须使用 `create_agent()`，并通过中间件实现自定义流程。所有其他替代方案均已过时。
 </oneliner>
 
 <create_agent>
-## Creating Agents with create_agent
+## 使用 create_agent 创建 Agent
 
-`create_agent()` is the recommended way to build agents. It handles the agent loop, tool execution, and state management.
+`create_agent()` 是构建 Agent 的推荐方式。它负责处理 Agent 循环、工具执行以及状态管理。
 
-### Agent Configuration Options
+### Agent 配置项
 
-| Parameter | Purpose | Example |
+| 参数 | 用途 | 示例 |
 |-----------|---------|---------|
-| `model` | LLM to use | `"anthropic:claude-sonnet-4-5"` or model instance |
-| `tools` | List of tools | `[search, calculator]` |
-| `system_prompt` / `systemPrompt` | Agent instructions | `"You are a helpful assistant"` |
-| `checkpointer` | State persistence | `MemorySaver()` |
-| `middleware` | Processing hooks | `[HumanInTheLoopMiddleware]` (Python) / `[humanInTheLoopMiddleware({...})]` (TypeScript) |
+| `model` | 所使用的 LLM | `"anthropic:claude-sonnet-4-5"` 或模型实例 |
+| `tools` | 工具列表 | `[search, calculator]` |
+| `system_prompt` / `systemPrompt` | Agent 指令 | `"You are a helpful assistant"` |
+| `checkpointer` | 状态持久化 | `MemorySaver()` |
+| `middleware` | 处理钩子（Hooks） | `[HumanInTheLoopMiddleware]` (Python) / `[humanInTheLoopMiddleware({...})]` (TypeScript) |
 </create_agent>
 
 <ex-basic-agent>
@@ -32,10 +32,10 @@ from langchain_core.tools import tool
 
 @tool
 def get_weather(location: str) -> str:
-    """Get current weather for a location.
+    """获取指定位置的当前天气。
 
     Args:
-        location: City name
+        location: 城市名称
     """
     return f"Weather in {location}: Sunny, 72F"
 
@@ -83,7 +83,7 @@ console.log(result.messages[result.messages.length - 1].content);
 
 <ex-agent-with-persistence>
 <python>
-Add MemorySaver checkpointer to maintain conversation state across invocations.
+添加 MemorySaver checkpointer 以在多次调用之间保持对话状态。
 
 ```python
 from langchain.agents import create_agent
@@ -100,11 +100,11 @@ agent = create_agent(
 config = {"configurable": {"thread_id": "user-123"}}
 agent.invoke({"messages": [{"role": "user", "content": "My name is Alice"}]}, config=config)
 result = agent.invoke({"messages": [{"role": "user", "content": "What's my name?"}]}, config=config)
-# Agent remembers: "Your name is Alice"
+# Agent 记住了："Your name is Alice"
 ```
 </python>
 <typescript>
-Add MemorySaver checkpointer to maintain conversation state across invocations.
+添加 MemorySaver checkpointer 以在多次调用之间保持对话状态。
 
 ```typescript
 import { createAgent } from "langchain";
@@ -121,15 +121,15 @@ const agent = createAgent({
 const config = { configurable: { thread_id: "user-123" } };
 await agent.invoke({ messages: [{ role: "user", content: "My name is Alice" }] }, config);
 const result = await agent.invoke({ messages: [{ role: "user", content: "What's my name?" }] }, config);
-// Agent remembers: "Your name is Alice"
+// Agent 记住了："Your name is Alice"
 ```
 </typescript>
 </ex-agent-with-persistence>
 
 <tools>
-## Defining Tools
+## 定义工具
 
-Tools are functions that agents can call. Use the `@tool` decorator (Python) or `tool()` function (TypeScript).
+工具是 Agent 可以调用的函数。使用 `@tool` 装饰器 (Python) 或 `tool()` 函数 (TypeScript)。
 </tools>
 
 <ex-basic-tool>
@@ -140,11 +140,11 @@ from langchain_core.tools import tool
 
 @tool
 def add(a: float, b: float) -> float:
-    """Add two numbers.
+    """将两个数字相加。
 
     Args:
-        a: First number
-        b: Second number
+        a: 第一个数字
+        b: 第二个数字
     """
     return a + b
 ```
@@ -171,11 +171,11 @@ const add = tool(
 </ex-basic-tool>
 
 <middleware>
-## Middleware for Agent Control
+## 用于控制 Agent 的中间件
 
-Middleware intercepts the agent loop to add human approval, error handling, logging, and more. A deep understanding of middleware is essential for production agents — use `HumanInTheLoopMiddleware` (Python) / `humanInTheLoopMiddleware` (TypeScript) for approval workflows, and `@wrap_tool_call` (Python) / `createMiddleware` (TypeScript) for custom hooks.
+中间件会拦截 Agent 循环以添加人工审批、错误处理、日志记录等功能。深入理解中间件对于构建生产级 Agent 至关重要 —— 使用 `HumanInTheLoopMiddleware` (Python) / `humanInTheLoopMiddleware` (TypeScript) 实现审批工作流，使用 `@wrap_tool_call` (Python) / `createMiddleware` (TypeScript) 实现自定义钩子。
 
-Key imports:
+核心导入：
 
 ```python
 from langchain.agents.middleware import HumanInTheLoopMiddleware, wrap_tool_call
@@ -185,16 +185,16 @@ from langchain.agents.middleware import HumanInTheLoopMiddleware, wrap_tool_call
 import { humanInTheLoopMiddleware, createMiddleware } from "langchain";
 ```
 
-Key patterns:
-- **HITL**: `middleware=[HumanInTheLoopMiddleware(interrupt_on={"dangerous_tool": True})]` — requires `checkpointer` + `thread_id`
-- **Resume after interrupt**: `agent.invoke(Command(resume={"decisions": [{"type": "approve"}]}), config=config)`
-- **Custom middleware**: `@wrap_tool_call` decorator (Python) or `createMiddleware({ wrapToolCall: ... })` (TypeScript)
+核心模式：
+- **HITL（人机协同）**：`middleware=[HumanInTheLoopMiddleware(interrupt_on={"dangerous_tool": True})]` —— 需要 `checkpointer` + `thread_id`
+- **中断后恢复**：`agent.invoke(Command(resume={"decisions": [{"type": "approve"}]}), config=config)`
+- **自定义中间件**：`@wrap_tool_call` 装饰器 (Python) 或 `createMiddleware({ wrapToolCall: ... })` (TypeScript)
 </middleware>
 
 <structured_output>
-## Structured Output
+## 结构化输出
 
-Get typed, validated responses from agents using `response_format` or `with_structured_output()`.
+使用 `response_format` 或 `with_structured_output()` 从 Agent 获取类型化且经过验证的响应。
 
 <python>
 
@@ -205,14 +205,14 @@ from pydantic import BaseModel, Field
 class ContactInfo(BaseModel):
     name: str
     email: str
-    phone: str = Field(description="Phone number with area code")
+    phone: str = Field(description="带区号的电话号码")
 
-# Option 1: Agent with structured output
+# 选项 1：带有结构化输出的 Agent
 agent = create_agent(model="gpt-4.1", tools=[search], response_format=ContactInfo)
 result = agent.invoke({"messages": [{"role": "user", "content": "Find contact for John"}]})
 print(result["structured_response"])  # ContactInfo(name='John', ...)
 
-# Option 2: Model-level structured output (no agent needed)
+# 选项 2：模型级结构化输出（无需 Agent）
 from langchain_openai import ChatOpenAI
 model = ChatOpenAI(model="gpt-4.1")
 structured_model = model.with_structured_output(ContactInfo)
@@ -229,10 +229,10 @@ import { z } from "zod";
 const ContactInfo = z.object({
   name: z.string(),
   email: z.string().email(),
-  phone: z.string().describe("Phone number with area code"),
+  phone: z.string().describe("带区号的电话号码"),
 });
 
-// Model-level structured output
+// 模型级结构化输出
 const model = new ChatOpenAI({ model: "gpt-4.1" });
 const structuredModel = model.withStructuredOutput(ContactInfo);
 const response = await structuredModel.invoke("Extract: John, john@example.com, 555-1234");
@@ -242,9 +242,9 @@ const response = await structuredModel.invoke("Extract: John, john@example.com, 
 </structured_output>
 
 <model_config>
-## Model Configuration
+## 模型配置
 
-`create_agent` accepts model strings (`"anthropic:claude-sonnet-4-5"`, `"openai:gpt-4.1"`) or model instances for custom settings:
+`create_agent` 接受模型字符串（`"anthropic:claude-sonnet-4-5"`、`"openai:gpt-4.1"`）或用于自定义设置的模型实例：
 
 ```python
 from langchain_anthropic import ChatAnthropic
@@ -255,40 +255,40 @@ agent = create_agent(model=ChatAnthropic(model="claude-sonnet-4-5", temperature=
 
 <fix-missing-tool-description>
 <python>
-Clear descriptions help the agent know when to use each tool.
+清晰的描述有助于 Agent 了解何时该使用每个工具。
 
 ```python
-# WRONG: Vague or missing description
+# 错误：描述模糊或缺失
 @tool
 def bad_tool(input: str) -> str:
-    """Does stuff."""
+    """处理事务。"""
     return "result"
 
-# CORRECT: Clear, specific description with Args
+# 正确：清晰具体的描述，并附带 Args 说明
 @tool
 def search(query: str) -> str:
-    """Search the web for current information about a topic.
+    """在网络上搜索关于某个主题的最新信息。
 
-    Use this when you need recent data or facts.
+    当需要获取最新的数据或事实时使用此工具。
 
     Args:
-        query: The search query (2-10 words recommended)
+        query: 搜索查询词（建议 2-10 个词）
     """
     return web_search(query)
 ```
 </python>
 <typescript>
-Clear descriptions help the agent know when to use each tool.
+清晰的描述有助于 Agent 了解何时该使用每个工具。
 
 ```typescript
-// WRONG: Vague description
+// 错误：描述模糊
 const badTool = tool(async ({ input }) => "result", {
   name: "bad_tool",
-  description: "Does stuff.", // Too vague!
+  description: "Does stuff.", // 太模糊了！
   schema: z.object({ input: z.string() }),
 });
 
-// CORRECT: Clear, specific description
+// 正确：清晰具体的描述
 const search = tool(async ({ query }) => webSearch(query), {
   name: "search",
   description: "Search the web for current information about a topic. Use this when you need recent data or facts.",
@@ -302,16 +302,16 @@ const search = tool(async ({ query }) => webSearch(query), {
 
 <fix-no-checkpointer>
 <python>
-Add checkpointer and thread_id for conversation memory across invocations.
+添加 checkpointer 和 thread_id，以实现跨调用的对话记忆。
 
 ```python
-# WRONG: No persistence - agent forgets between calls
+# 错误：没有持久化 - Agent 在多次调用之间会遗忘
 agent = create_agent(model="anthropic:claude-sonnet-4-5", tools=[search])
 agent.invoke({"messages": [{"role": "user", "content": "I'm Bob"}]})
 agent.invoke({"messages": [{"role": "user", "content": "What's my name?"}]})
-# Agent doesn't remember!
+# Agent 记不住！
 
-# CORRECT: Add checkpointer and thread_id
+# 正确：添加 checkpointer 和 thread_id
 from langgraph.checkpoint.memory import MemorySaver
 
 agent = create_agent(
@@ -322,20 +322,20 @@ agent = create_agent(
 config = {"configurable": {"thread_id": "session-1"}}
 agent.invoke({"messages": [{"role": "user", "content": "I'm Bob"}]}, config=config)
 agent.invoke({"messages": [{"role": "user", "content": "What's my name?"}]}, config=config)
-# Agent remembers: "Your name is Bob"
+# Agent 记住了："Your name is Bob"
 ```
 </python>
 <typescript>
-Add checkpointer and thread_id for conversation memory across invocations.
+添加 checkpointer 和 thread_id，以实现跨调用的对话记忆。
 
 ```typescript
-// WRONG: No persistence
+// 错误：没有持久化
 const agent = createAgent({ model: "anthropic:claude-sonnet-4-5", tools: [search] });
 await agent.invoke({ messages: [{ role: "user", content: "I'm Bob" }] });
 await agent.invoke({ messages: [{ role: "user", content: "What's my name?" }] });
-// Agent doesn't remember!
+// Agent 记不住！
 
-// CORRECT: Add checkpointer and thread_id
+// 正确：添加 checkpointer 和 thread_id
 import { MemorySaver } from "@langchain/langgraph";
 
 const agent = createAgent({
@@ -346,37 +346,37 @@ const agent = createAgent({
 const config = { configurable: { thread_id: "session-1" } };
 await agent.invoke({ messages: [{ role: "user", content: "I'm Bob" }] }, config);
 await agent.invoke({ messages: [{ role: "user", content: "What's my name?" }] }, config);
-// Agent remembers: "Your name is Bob"
+// Agent 记住了："Your name is Bob"
 ```
 </typescript>
 </fix-no-checkpointer>
 
 <fix-infinite-loop>
 <python>
-Set recursion_limit in the invoke config to prevent runaway agent loops.
+在 invoke 配置中设置 recursion_limit，以防止 Agent 循环失控。
 
 ```python
-# WRONG: No iteration limit - could loop forever
+# 错误：没有迭代限制 - 可能会无限循环
 result = agent.invoke({"messages": [("user", "Do research")]})
 
-# CORRECT: Set recursion_limit in config
+# 正确：在 config 中设置 recursion_limit
 result = agent.invoke(
     {"messages": [("user", "Do research")]},
-    config={"recursion_limit": 10},  # Stop after 10 steps
+    config={"recursion_limit": 10},  # 在 10 步后停止
 )
 ```
 </python>
 <typescript>
-Set recursionLimit in the invoke config to prevent runaway agent loops.
+在 invoke 配置中设置 recursionLimit，以防止 Agent 循环失控。
 
 ```typescript
-// WRONG: No iteration limit
+// 错误：没有迭代限制
 const result = await agent.invoke({ messages: [["user", "Do research"]] });
 
-// CORRECT: Set recursionLimit in config
+// 正确：在 config 中设置 recursionLimit
 const result = await agent.invoke(
   { messages: [["user", "Do research"]] },
-  { recursionLimit: 10 }, // Stop after 10 steps
+  { recursionLimit: 10 }, // 在 10 步后停止
 );
 ```
 </typescript>
@@ -384,29 +384,29 @@ const result = await agent.invoke(
 
 <fix-accessing-result-wrong>
 <python>
-Access the messages array from the result, not result.content directly.
+从结果中访问 messages 数组，而不是直接访问 result.content。
 
 ```python
-# WRONG: Trying to access result.content directly
+# 错误：尝试直接访问 result.content
 result = agent.invoke({"messages": [{"role": "user", "content": "Hello"}]})
 print(result.content)  # AttributeError!
 
-# CORRECT: Access messages from result dict
+# 正确：从结果字典中访问 messages
 result = agent.invoke({"messages": [{"role": "user", "content": "Hello"}]})
-print(result["messages"][-1].content)  # Last message content
+print(result["messages"][-1].content)  # 最后一条消息的内容
 ```
 </python>
 <typescript>
-Access the messages array from the result, not result.content directly.
+从结果中访问 messages 数组，而不是直接访问 result.content。
 
 ```typescript
-// WRONG: Trying to access result.content directly
+// 错误：尝试直接访问 result.content
 const result = await agent.invoke({ messages: [{ role: "user", content: "Hello" }] });
 console.log(result.content); // undefined!
 
-// CORRECT: Access messages from result object
+// 正确：从结果对象中访问 messages
 const result = await agent.invoke({ messages: [{ role: "user", content: "Hello" }] });
-console.log(result.messages[result.messages.length - 1].content); // Last message content
+console.log(result.messages[result.messages.length - 1].content); // 最后一条消息的内容
 ```
 </typescript>
 </fix-accessing-result-wrong>

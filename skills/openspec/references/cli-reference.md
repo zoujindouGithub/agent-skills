@@ -198,7 +198,7 @@ openspec show [item-name] [options]
 | `--deltas-only` | 仅显示 Delta Specs（JSON 模式） |
 | `--requirements` | 仅显示需求，排除场景（JSON 模式） |
 | `--no-scenarios` | 排除场景内容（JSON 模式） |
-| `-r, --requirement <id>` | 显示特定需求（1-based 索引，JSON 模式） |
+| `-r, --requirement <id>` | 显示特定需求（基于 1 的索引，JSON 模式） |
 
 **示例：**
 

@@ -1,25 +1,25 @@
-# LangSmith Online Evaluator API Reference
+# LangSmith 在线评估器 API 参考
 
-Working code patterns for creating and managing LangSmith online evaluators. All snippets are derived from the [online-evals](https://github.com/langchain-ai/langchain-skills) reference scripts and tested against `langsmith >= 0.9.8`.
+用于创建和管理 LangSmith 在线评估器的有效代码模式。所有代码片段均派生自 [online-evals](https://github.com/langchain-ai/langchain-skills) 参考脚本，并在 `langsmith >= 0.9.8` 版本下测试通过。
 
-## Setup
+## 安装与配置
 
 ```python
 from langsmith import Client
 
-client = Client()  # uses LANGSMITH_API_KEY from environment
+client = Client()  # 使用环境变量中的 LANGSMITH_API_KEY
 ```
 
-Required environment variables:
+必需的环境变量：
 
 ```
 LANGSMITH_API_KEY=lsv2_pt_...
-LANGSMITH_ENDPOINT=https://api.smith.langchain.com   # optional, this is the default
+LANGSMITH_ENDPOINT=https://api.smith.langchain.com   # 可选，此为默认值
 ```
 
-## Inspect traces
+## 检查追踪（Traces）
 
-Trace inspection uses synchronous SDK methods. Use this to discover field names before building an evaluator.
+追踪检查使用同步 SDK 方法。在构建评估器之前，可以使用此方法来发现字段名称。
 
 ```python
 import json
@@ -38,13 +38,13 @@ for i, run in enumerate(runs):
     print(f"Outputs: {json.dumps(run.outputs, indent=2, default=str)[:2000]}")
 ```
 
-Each run exposes: `.id`, `.name`, `.run_type`, `.inputs` (dict), `.outputs` (dict).
+每个 run 对象都暴露以下属性：`.id`、`.name`、`.run_type`、`.inputs`（dict）、`.outputs`（dict）。
 
-## Create an LLM-as-judge evaluator
+## 创建 LLM 评审评估器（LLM-as-judge）
 
-LLM evaluators use a structured prompt pushed to the LangSmith Prompt Hub. All evaluator operations are async.
+LLM 评估器使用推送到 LangSmith Prompt Hub 的结构化提示词。所有评估器操作均为异步。
 
-### 1. Define the response schema
+### 1. 定义响应 Schema
 
 ```python
 from pydantic import BaseModel, Field
@@ -58,9 +58,9 @@ class ResponseSchema(BaseModel):
     )
 ```
 
-Put `reasoning` first so the LLM explains before scoring.
+将 `reasoning` 放在最前面，以便 LLM 在打分前先输出推理过程。
 
-### 2. Build and push the prompt
+### 2. 构建并推送提示词
 
 ```python
 from langchain_core.prompts.structured import StructuredPrompt
@@ -81,7 +81,7 @@ prompt = StructuredPrompt.from_messages_and_schema(
 url = client.push_prompt("my-evaluator", object=prompt)
 ```
 
-### 3. Create the evaluator
+### 3. 创建评估器
 
 ```python
 import asyncio
@@ -104,45 +104,45 @@ async def create_llm_evaluator():
 evaluator_id = asyncio.run(create_llm_evaluator())
 ```
 
-### Variable mapping
+### 变量映射（Variable mapping）
 
-`variable_mapping` connects prompt template variables to top-level trace fields. The keys are template variable names (appearing as `{name}` in the prompt), and the values are trace field paths.
+`variable_mapping` 将提示词模板变量连接到顶层追踪字段。键为模板变量名（在提示词中显示为 `{name}`），值为追踪字段路径。
 
-Common mappings:
+常见映射：
 
-| Template variable | Trace field | Notes |
+| 模板变量 | 追踪字段 | 说明 |
 |---|---|---|
-| `input` | `input` | Top-level `run.inputs` |
-| `output` | `output` | Top-level `run.outputs` |
+| `input` | `input` | 顶层 `run.inputs` |
+| `output` | `output` | 顶层 `run.outputs` |
 
-Discover available fields using trace inspection above.
+可使用上方的追踪检查方法来发现可用字段。
 
-## Create a code evaluator
+## 创建代码评估器
 
-Code evaluators run a Python function directly against each trace. The function must be self-contained (no external imports).
+代码评估器针对每个追踪直接运行一个 Python 函数。该函数必须自包含（不能包含外部导入）。
 
-### Function signature
+### 函数签名
 
 ```python
 def perform_eval(run, example=None):
     """
-    Parameters:
-        run: dict with keys "inputs" (dict), "outputs" (dict), "attachments"
-        example: None for online evaluators (only set for dataset evals)
+    参数：
+        run: 包含键 "inputs" (dict)、"outputs" (dict)、"attachments" 的字典
+        example: 在线评估器为 None（仅在数据集评估中设置）
 
-    Returns:
-        dict with keys:
-            "key": str       -- evaluator identifier
-            "score": value   -- bool, int, or float
-            "comment": str   -- optional explanation
+    返回：
+        包含以下键的字典：
+            "key": str       -- 评估器标识符
+            "score": value   -- bool、int 或 float
+            "comment": str   -- 可选的解释说明
     """
 ```
 
-> **Important:** Two runtime constraints to be aware of:
-> 1. `example` must default to `None`. The online evaluator runtime calls `perform_eval(run)` with a single argument -- `example` is only passed for dataset evaluators.
-> 2. `run` is a plain **dict**, not an object. Use `run.get("inputs")` and `run.get("outputs")` -- not `run.inputs` or `run.outputs`. Attribute access will raise `AttributeError`.
+> **重要提示：** 需要注意两个运行时限制：
+> 1. `example` 的默认值必须为 `None`。在线评估器运行时调用 `perform_eval(run)` 时仅传入单个参数 —— `example` 仅在数据集评估器中传递。
+> 2. `run` 是一个普通 **dict**，而非对象。请使用 `run.get("inputs")` 和 `run.get("outputs")` —— 不要使用 `run.inputs` 或 `run.outputs`。属性访问会引发 `AttributeError`。
 
-### Example: check whether output exists
+### 示例：检查输出是否存在
 
 ```python
 import textwrap
@@ -163,7 +163,7 @@ EVALUATOR_CODE = textwrap.dedent("""\
 """)
 ```
 
-### Create the evaluator
+### 创建评估器
 
 ```python
 async def create_code_evaluator():
@@ -180,9 +180,9 @@ async def create_code_evaluator():
 evaluator_id = asyncio.run(create_code_evaluator())
 ```
 
-## Attach evaluator to a project (run rules)
+## 将评估器附加到项目（运行规则 / run rules）
 
-Run rules connect evaluators to tracing projects. The SDK does not have a dedicated run-rules wrapper, so use `httpx` against the REST API.
+运行规则（Run rules）用于将评估器连接到追踪项目。SDK 没有专门的 run-rules 包装器，因此需使用 `httpx` 调用 REST API。
 
 ```python
 import os
@@ -193,17 +193,17 @@ client = Client()
 api_key = os.environ["LANGSMITH_API_KEY"]
 endpoint = os.environ.get("LANGSMITH_ENDPOINT", "https://api.smith.langchain.com")
 
-# Look up project ID
+# 查询项目 ID
 project = client.read_project(project_name="my-project")
 
-# Create run rule
+# 创建运行规则
 resp = httpx.post(
     f"{endpoint}/api/v1/runs/rules",
     headers={"x-api-key": api_key},
     json={
         "display_name": f"eval-{project.name}",
         "session_id": str(project.id),
-        "sampling_rate": 1.0,        # 1.0 = every trace, 0.1 = 10%
+        "sampling_rate": 1.0,        # 1.0 = 评估所有追踪, 0.1 = 10%
         "evaluator_id": EVALUATOR_ID,
         "is_enabled": True,
     },
@@ -215,19 +215,19 @@ rule = resp.json()
 print(f"Run rule created -> {rule['id']}")
 ```
 
-### Payload reference
+### 请求载荷参考
 
-| Field | Type | Description |
+| 字段 | 类型 | 说明 |
 |---|---|---|
-| `display_name` | str | Human-readable label in UI |
-| `session_id` | str (UUID) | Project ID (from `client.read_project`) |
-| `sampling_rate` | float | 0.0--1.0; fraction of traces to evaluate |
-| `evaluator_id` | str (UUID) | Evaluator ID from creation step |
-| `is_enabled` | bool | Whether the rule is active |
+| `display_name` | str | 在 UI 中显示的人类可读标签 |
+| `session_id` | str (UUID) | 项目 ID（来自 `client.read_project`） |
+| `sampling_rate` | float | 0.0--1.0；要评估的追踪比例 |
+| `evaluator_id` | str (UUID) | 来自创建步骤的评估器 ID |
+| `is_enabled` | bool | 规则是否处于激活状态 |
 
-## List, update, and delete evaluators
+## 列出、更新和删除评估器
 
-### List all evaluators
+### 列出所有评估器
 
 ```python
 async def list_evaluators():
@@ -245,9 +245,9 @@ async def list_evaluators():
 asyncio.run(list_evaluators())
 ```
 
-> **Note:** The paginated result object uses `.evaluators` to access the list of evaluator objects. Some older examples may use `.data` -- this attribute was renamed in recent SDK versions.
+> **注意：** 分页结果对象使用 `.evaluators` 来访问评估器对象列表。某些较旧的示例可能会使用 `.data` —— 在最近的 SDK 版本中该属性已被重命名。
 
-### Update an evaluator
+### 更新评估器
 
 ```python
 async def update_evaluator():
@@ -260,22 +260,22 @@ async def update_evaluator():
 asyncio.run(update_evaluator())
 ```
 
-### Delete an evaluator
+### 删除评估器
 
 ```python
 async def delete_evaluator():
     await client.evaluators.delete(
         evaluator_id=EVALUATOR_ID,
-        delete_run_rules=True,  # also removes attached run rules
+        delete_run_rules=True,  # 同时移除附加的运行规则
     )
     print("Deleted ->", EVALUATOR_ID)
 
 asyncio.run(delete_evaluator())
 ```
 
-## Async patterns
+## 异步模式
 
-- **Evaluator operations** (`create`, `list`, `update`, `delete`) are async -- use `asyncio.run()` or `await` in an async context.
-- **Trace inspection** (`client.list_runs`) and **project lookup** (`client.read_project`) are synchronous.
-- **Run rules** use `httpx` (synchronous POST).
-- `client.push_prompt` is synchronous.
+- **评估器操作**（`create`、`list`、`update`、`delete`）是异步的 —— 在异步上下文中使用 `asyncio.run()` 或 `await`。
+- **追踪检查**（`client.list_runs`）和**项目查询**（`client.read_project`）是同步的。
+- **运行规则**使用 `httpx`（同步 POST）。
+- `client.push_prompt` 是同步的。

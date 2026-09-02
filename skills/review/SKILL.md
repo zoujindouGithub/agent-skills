@@ -1,69 +1,69 @@
 ---
 name: review
-description: Review the changes since a fixed point (commit, branch, tag, or merge-base) along two axes — Standards (does the code follow this repo's documented coding standards?) and Spec (does the code match what the originating issue/PRD asked for?). Runs both reviews in parallel sub-agents and reports them side by side. Use when the user wants to review a branch, a PR, work-in-progress changes, or asks to "review since X".
+description: 沿两个维度审查自某个固定节点（提交、分支、标签或 merge-base）以来的代码变更 —— 规范维度（代码是否遵循该仓库中记录的编码规范？）和需求维度（代码是否符合最初 issue/PRD 中的要求？）。在并行的子 Agent 中运行这两个审查，并肩并肩输出报告。适用于用户想要审查分支、PR、进行中的变更或要求“审查自 X 以来的变更”时。
 ---
 
-Two-axis review of the diff between `HEAD` and a fixed point the user supplies:
+沿两个维度审查 `HEAD` 与用户提供的固定节点之间的 diff：
 
-- **Standards** — does the code conform to this repo's documented coding standards?
-- **Spec** — does the code faithfully implement the originating issue / PRD / spec?
+- **规范（Standards）** —— 代码是否符合该仓库中记录的编码规范？
+- **需求（Spec）** —— 代码是否忠实地实现了最初的 issue / PRD / 需求文档？
 
-Both axes run as **parallel sub-agents** so they don't pollute each other's context, then this skill aggregates their findings.
+两个维度作为**并行子 Agent**运行，以避免互相污染上下文，然后由本 Skill 汇总其发现的问题。
 
-The issue tracker should have been provided to you — run `/setup-matt-pocock-skills` if `docs/agents/issue-tracker.md` is missing.
+Issue 追踪工具应当已提供给你 —— 如果缺少 `docs/agents/issue-tracker.md`，请运行 `/setup-matt-pocock-skills`。
 
-## Process
+## 流程
 
-### 1. Pin the fixed point
+### 1. 确定固定节点
 
-Whatever the user said is the fixed point — a commit SHA, branch name, tag, `main`, `HEAD~5`, etc. If they didn't specify one, ask for it.
+用户指定的任何固定节点 —— 提交 SHA、分支名、标签、`main`、`HEAD~5` 等。如果用户未指定，请向其询问。
 
-Capture the diff command once: `git diff <fixed-point>...HEAD` (three-dot, so the comparison is against the merge-base). Also note the list of commits via `git log <fixed-point>..HEAD --oneline`.
+确定一次 diff 命令：`git diff <fixed-point>...HEAD`（使用三点语法，以便针对 merge-base 进行比较）。同时通过 `git log <fixed-point>..HEAD --oneline` 记录提交列表。
 
-Before going further, confirm the fixed point resolves (`git rev-parse <fixed-point>`) and the diff is non-empty. A bad ref or empty diff should fail here — not inside two parallel sub-agents.
+在继续之前，确认固定节点可以解析（`git rev-parse <fixed-point>`）且 diff 非空。无效的引用或空的 diff 应该在此时报错 —— 而不是在两个并行子 Agent 内部才报错。
 
-### 2. Identify the spec source
+### 2. 确定需求来源
 
-Look for the originating spec, in this order:
+按以下顺序查找原始需求规范：
 
-1. Issue references in the commit messages (`#123`, `Closes #45`, GitLab `!67`, etc.) — fetch via the workflow in `docs/agents/issue-tracker.md`.
-2. A path the user passed as an argument.
-3. A PRD/spec file under `docs/`, `specs/`, or `.scratch/` matching the branch name or feature.
-4. If nothing is found, ask the user where the spec is. If they say there isn't one, the **Spec** sub-agent will skip and report "no spec available".
+1. 提交信息中的 Issue 引用（`#123`、`Closes #45`、GitLab `!67` 等）—— 通过 `docs/agents/issue-tracker.md` 中的工作流获取。
+2. 用户作为参数传入的路径。
+3. `docs/`、`specs/` 或 `.scratch/` 下与分支名称或功能匹配的 PRD/需求规范文件。
+4. 如果未找到任何内容，请询问用户需求文档所在位置。如果用户表示没有需求文档，**需求（Spec）**子 Agent 将跳过并报告“无可用需求文档”。
 
-### 3. Identify the standards sources
+### 3. 确定规范来源
 
-Anything in the repo that documents how code should be written, such as `CODING_STANDARDS.md` or `CONTRIBUTING.md`.
+仓库中任何记录代码编写规范的文件，例如 `CODING_STANDARDS.md` 或 `CONTRIBUTING.md`。
 
-### 4. Spawn both sub-agents in parallel
+### 4. 并行生成两个子 Agent
 
-Send a single message with two `Agent` tool calls. Use the `general-purpose` subagent for both.
+发送包含两个 `Agent` 工具调用的单条消息。两个子 Agent 均使用 `general-purpose` 类型。
 
-**Standards sub-agent prompt** — include:
+**规范（Standards）子 Agent 提示词** —— 包含：
 
-- The full diff command and commit list.
-- The list of standards-source files you found in step 3.
-- The brief: "Report — per file/hunk where relevant — every place the diff violates a documented standard. Cite the standard (file + the rule). Distinguish hard violations from judgement calls. Skip anything tooling enforces. Under 400 words."
+- 完整的 diff 命令和提交列表。
+- 你在步骤 3 中找到的规范源文件列表。
+- 任务简报：“在相关位置按文件/代码块报告 diff 违反已记录规范的每一处。引用相应规范（文件 + 规则）。区分硬性违规与主观判断。跳过任何已由自动化工具强制执行的内容。字数在 400 字以内。”
 
-**Spec sub-agent prompt** — include:
+**需求（Spec）子 Agent 提示词** —— 包含：
 
-- The diff command and commit list.
-- The path or fetched contents of the spec.
-- The brief: "Report: (a) requirements the spec asked for that are missing or partial; (b) behaviour in the diff that wasn't asked for (scope creep); (c) requirements that look implemented but where the implementation looks wrong. Quote the spec line for each finding. Under 400 words."
+- diff 命令和提交列表。
+- 需求文档的路径或已获取的内容。
+- 任务简报：“报告：(a) 需求中要求但缺失或仅部分实现的要求；(b) diff 中未被要求的行为（范围蔓延）；(c) 看起来已实现但实现方式似乎有误的要求。每项发现均需引用需求原句。字数在 400 字以内。”
 
-If the spec is missing, skip the Spec sub-agent and note this in the final report.
+如果缺少需求文档，请跳过需求子 Agent，并在最终报告中予以说明。
 
-### 5. Aggregate
+### 5. 汇总
 
-Present the two reports under `## Standards` and `## Spec` headings, verbatim or lightly cleaned. Do **not** merge or rerank findings — the two axes are deliberately separate (see _Why two axes_).
+在 `## Standards` 和 `## Spec` 标题下展示两份报告，保持原样输出或进行轻微整理。**不要**合并或重新排列发现的问题 —— 这两个维度是有意分开的（参见_为什么采用双维度_）。
 
-End with a one-line summary: total findings per axis, and the worst issue _within each axis_ (if any). Don't pick a single winner across axes — that's the reranking the separation exists to prevent.
+以单行总结结尾：列出每个维度的发现总数，以及_各个维度内_最严重的问题（如果有）。不要跨维度评选单一的最严重问题 —— 保持分离正是为了防止跨维度的重新排序。
 
-## Why two axes
+## 为什么采用双维度
 
-A change can pass one axis and fail the other:
+一项变更可能在一个维度上通过，但在另一个维度上失败：
 
-- Code that follows every standard but implements the wrong thing → **Standards pass, Spec fail.**
-- Code that does exactly what the issue asked but breaks the project's conventions → **Spec pass, Standards fail.**
+- 代码遵循了每一条规范，但实现的内容完全错误 → **规范通过，需求失败。**
+- 代码完全符合 Issue 的要求，但破坏了项目的代码约定 → **需求通过，规范失败。**
 
-Reporting them separately stops one axis from masking the other.
+分别报告这两个维度可以防止一个维度掩盖另一个维度。

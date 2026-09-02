@@ -1,186 +1,179 @@
-# Environment Building
+# 环境构建 (Environment Building)
 
-The Environment is the resettable container/world around the Harness. Build only what the approved task needs.
+环境（Environment）是围绕测试载具（Harness）的可重置容器/世界。只构建已批准任务所需的内容。
 
-It owns:
+它负责管理：
 
-- OS, packages, files, and workspace layout;
-- backing documents, records, indexes, policies, and fixtures;
-- services and state behind Harness tools;
-- identity, permissions, network, clock, and feature flags;
-- initial state, observable effects, and reset between trials.
+- 操作系统、软件包、文件以及工作区布局；
+- 支撑文档、记录、索引、策略和测试夹具（fixtures）；
+- Harness 工具背后的服务和状态；
+- 身份标识、权限、网络、时钟和特性开关（feature flags）；
+- 初始状态、可观察到的效果以及试验之间的重置。
 
-It does not own the Harness's prompts, loop, model decisions, repository-defined tool code, retries, parsing, or final response. A tool server supplied to the Harness at runtime may live in the Environment.
+它不负责 Harness 的提示词、执行循环、模型决策、代码库定义的工具代码、重试逻辑、解析或最终响应。在运行时提供给 Harness 的工具服务器可以存放在环境中。
 
-## Choose each dependency
+## 选择各项依赖项
 
-| Option | Use when | Example |
+| 选项 | 适用场景 | 示例 |
 |---|---|---|
-| Live | Read-only, low-cost, stable, safely credentialed, and difficult to reproduce | query a large internal catalog without mutation |
-| Frozen | Results must stay stable across trials | serve a pinned docs corpus and search index |
-| Simulated | Writes, permissions, failures, or state must reset | local ticket service with known initial records |
+| 实时（Live） | 只读、低成本、稳定、安全鉴权且难以复现 | 查询大型内部目录而不进行修改 |
+| 冻结（Frozen） | 跨试验的结果必须保持稳定 | 提供固定版本的文档语料库和搜索索引 |
+| 模拟（Simulated） | 写入、权限、故障或状态必须能够重置 | 具有已知初始记录的本地工单服务 |
 
-Tell the user what is live, frozen, or synthetic; what credentials live access needs; and what effects are possible. Record a source revision, timestamp, or hash for copied data. Mark constructed records as synthetic.
+向用户说明哪些是实时的、冻结的或合成的；实时访问需要什么凭据；以及可能产生哪些效果。为复制的数据记录源版本号、时间戳或哈希值。将构造的记录标记为合成数据。
 
-## Write `environment.md`
+## 编写 `environment.md`
 
-Before implementation, write `evals/<task-id>/environment.md`:
+在实现之前，编写 `evals/<task-id>/environment.md`：
 
 ```text
 Status: draft | approved
-Dependencies: name, live/frozen/simulated mode, implementation, credentials, effects
-Backend contracts: exercised operations, schemas, rules, failures, and permissions
-Data: each dataset's purpose, source or generation rule, structure, relationships,
-      representative records, storage backend, and reset
-Isolation: filesystem, network, identity, clock, and per-trial state
-Fidelity limits: behavior intentionally not reproduced
+Dependencies: 名称、实时/冻结/模拟模式、实现、凭据、效果
+Backend contracts: 涉及的操作、模式（schemas）、规则、故障和权限
+Data: 每个数据集的目的、来源或生成规则、结构、关系、
+      代表性记录、存储后端以及重置方式
+Isolation: 文件系统、网络、身份标识、时钟以及单次试验状态
+Fidelity limits: 故意未复现的行为
 ```
 
-Make generated data concrete enough to review before it exists. Example:
+使生成的数据足够具体，以便在其生成前进行审查。示例：
 
 ```text
-Dataset: accounts and tickets
-Purpose: require disambiguation between two same-name accounts
+Dataset: 账户和工单
+Purpose: 要求在两个同名账户之间进行消除歧义
 Structure: accounts{id, name, plan, active}; tickets{id, account_id, status}
 Relationships: tickets.account_id -> accounts.id
-Records: two active Sam Lee accounts on different plans; one closed distractor
-Storage: seed.json materialized into SQLite tables `accounts` and `tickets`
-Generation: fixed synthetic records; neutral IDs and shuffled insertion order
-Reset: recreate the SQLite file from seed.json for every trial
+Records: 两个处于不同套餐的活跃 Sam Lee 账户；一个已关闭的干扰账户
+Storage: 将 seed.json 实例化到 SQLite 表 `accounts` 和 `tickets` 中
+Generation: 固定的合成记录；中性 ID 和打乱的插入顺序
+Reset: 每次试验都从 seed.json 重新创建 SQLite 文件
 ```
 
-Set `Status: approved` only after the user approves this file with `harness.md` and `task.md`.
+仅在用户批准此文件以及 `harness.md` 和 `task.md` 之后，才将状态设置为 `Status: approved`。
 
-## Define the backend contract
+## 定义后端契约
 
-Write the contract before choosing an implementation:
+在选择实现之前编写契约：
 
 ```text
-Interface: operations and exact request/response schemas
-State: source of truth and initial records
-Rules: validation, permissions, and domain invariants
-Failures: errors the task can exercise
-Effects: reads, writes, and external actions
-Reset: how the initial state is restored
-Evidence: repository code, tests, and supplied traces supporting the contract
+Interface: 操作以及确切的请求/响应模式（schemas）
+State: 单一事实来源和初始记录
+Rules: 验证、权限和领域不变式
+Failures: 任务可能触发的错误
+Effects: 读取、写入和外部操作
+Reset: 如何恢复初始状态
+Evidence: 支持该契约的代码库代码、测试和提供的追踪（traces）
 ```
 
-Include only task-exercised behavior: schemas, validation and errors, ordering or pagination, identity and permissions, mutations, domain rules, and time.
+仅包含任务所涉及的行为：模式、验证与错误、排序或分页、身份与权限、状态变更、领域规则以及时间。
 
-Example:
+示例：
 
 ```text
 Interface: search_docs(query, limit) -> [{path, title, snippet, score}]
-State: pinned document corpus and search index
-Rules: enforce result limit and caller permissions
-Failures: empty results and missing documents
-Effects: read-only
-Reset: reload the pinned corpus
-Evidence: search wrapper, integration tests, and supplied traces
+State: 固定版本的文档语料库和搜索索引
+Rules: 强制执行结果数量限制和调用方权限
+Failures: 空结果和缺失文档
+Effects: 只读
+Reset: 重新加载固定语料库
+Evidence: 搜索包装器、集成测试和提供的追踪
 ```
 
-## Choose the implementation and data
+## 选择实现与数据
 
-Use the smallest injection point that preserves the contract: fixture, dependency override, temporary workspace, test database, local endpoint, or existing integration harness.
+使用能够维持契约的最小注入点：测试夹具（fixture）、依赖覆盖、临时工作区、测试数据库、本地端点或现有的集成载具。
 
-| Need | Example implementation |
+| 需求 | 示例实现 |
 |---|---|
-| Small single-process state | typed objects loaded from a JSON fixture |
-| Relational queries or transactions | seeded SQLite or an existing test database |
-| Harness calls a production HTTP client | local service implementing the exercised endpoints |
-| Production supplies tools dynamically | local MCP server advertising the exercised schemas |
-| Read-only files or retrieval | pinned directory, corpus, or search index |
+| 小型单进程状态 | 从 JSON fixture 加载的类型化对象 |
+| 关系查询或事务 | 预填数据的 SQLite 或现有的测试数据库 |
+| Harness 调用生产 HTTP 客户端 | 实现所涉及端点的本地服务 |
+| 生产环境动态提供工具 | 声明所涉及模式的本地 MCP 服务器 |
+| 只读文件或检索 | 固定版本的目录、语料库或搜索索引 |
 
-Do not replace repository-defined tool code with a task-specific implementation; replace the service or data behind it.
+不要将代码库定义的工具代码替换为特定于任务的实现；而是替换其背后的服务或数据。
 
-Preserve the production tool surface for every exercised operation: tool name, input schema,
-output schema, parsing behavior, and relevant errors stay in the Harness. The Environment may
-simulate the behavior behind that surface with controlled data. Example: keep
-`create_ticket(title, priority)` and route it to a local ticket store rather than creating an
-eval-only `create_ticket_for_task` tool.
+为每个涉及的操作保留生产工具接口表面：工具名称、输入模式、输出模式、解析行为和相关错误均保留在 Harness 中。环境可以通过受控数据模拟该接口背后的行为。例如：保留 `create_ticket(title, priority)` 并将其路由到本地工单存储，而不是创建一个仅用于评测的 `create_ticket_for_task` 工具。
 
-If generation is necessary, use synthetic identities, a fixed seed, and a materialized fixture so every trial receives the same records. Before implementation, show the proposed records or files and why each exists. Reject a fixture when the Harness can succeed by selecting the only option, following record order, reading answer-coded names, or bypassing the production interface.
+如果必须生成数据，请使用合成身份、固定种子和实体化的 fixture，以确保每次试验都接收相同的记录。在实现之前，展示拟定的记录或文件，并说明每个记录或文件存在的原因。如果 Harness 可以通过选择唯一选项、遵循记录顺序、读取包含答案代码的名称或绕过生产接口来成功完成任务，则应拒绝该 fixture。
 
-## Build the backend and world state
+## 构建后端与世界状态
 
-Use one canonical state store. Give IDs, time, and generated values deterministic behavior. Enforce domain rules in the backend, not in the prompt or Verifier. For example, a reservation service should reject an overlapping booking even if the agent never checked availability first.
+使用一个规范的状态存储。为 ID、时间和生成的值赋予确定性的行为。在后端强制执行领域规则，而不是在提示词或验证器（Verifier）中。例如，即使智能体从未预先检查可用性，预订服务也应拒绝重叠的预订。
 
-Seed only data needed to create the selected decision: valid candidates, relevant invalid candidates, and existing state that changes the outcome. Every extra record should exercise a named behavior such as search, ambiguity, permissions, or a constraint. Do not add random distractors.
+仅预置创建目标决策所需的数据：有效候选、相关的无效候选以及会改变结果的现有状态。每条额外记录都应测试特定的具名行为，例如搜索、歧义消除、权限或约束条件。不要添加随意的干扰项。
 
-When traces inform the backend, compare only the exercised schemas, errors, ordering, permissions, and state transitions. Do not recreate unrelated production behavior or copy production records.
+当使用追踪（traces）来指导后端构建时，仅对比涉及的模式、错误、排序、权限和状态转换。不要重现无关的生产行为或复制生产记录。
 
-Never key results on the task ID, expected answer, exact instruction wording, or a hidden required tool sequence.
+绝不要将结果与任务 ID、预期答案、精确的指令用词或隐藏的必选工具调用序列进行键值关联。
 
-## Examples
+## 示例
 
-### Docs search
+### 文档搜索
 
-Task: determine the current account-deletion retention period.
+任务：确定当前的账户注销保留期。
 
-Bad: one file named `account-deletion-answer.md` containing “30 days.”
+反例：一个名为 `account-deletion-answer.md` 的文件，内容为“30 天”。
 
-| Document | Content | Why included |
+| 文档 | 内容 | 包含原因 |
 |---|---|---|
-| Current account-deletion policy | 30 days; effective 2026 | supports the answer |
-| Archived account-deletion policy | 60 days; superseded in 2025 | requires freshness checking |
-| Workspace-deletion policy | 14 days for workspaces | requires scope checking |
-| Account-recovery FAQ | recovery process without a retention period | plausible nearby search result |
+| 当前账户注销策略 | 30 天；2026 年生效 | 支持答案 |
+| 已归档的账户注销策略 | 60 天；于 2025 年废止 | 要求进行时效性检查 |
+| 工作区删除策略 | 工作区为 14 天 | 要求进行作用域检查 |
+| 账户恢复常见问题 | 恢复流程，不包含保留期 | 合理的邻近搜索结果 |
 
-Serve these through the production-shaped search result schema and document-reading interface. Keep the documents as independent truth for the Verifier. Add empty results or missing pages only when the task exercises them.
+通过生产环境形式的搜索结果模式和文档读取接口提供这些内容。将这些文档保留为供 Verifier 使用的独立真实数据源。仅在任务涉及空结果或缺失页面时才添加它们。
 
-### Reservation service
+### 预订服务
 
-Task: reserve adjacent indoor tables for parties of four and two.
+任务：为 4 人和 2 人的用餐团体预订相邻的室内桌位。
 
-Bad: one available record named `CORRECT_TABLE`.
+反例：一条名为 `CORRECT_TABLE` 的可用记录。
 
-| Table | Capacity | Area | Available | Adjacent to | Why included |
+| 桌号 | 容量 | 区域 | 是否可用 | 相邻桌号 | 包含原因 |
 |---|---:|---|---|---|---|
-| T1 | 4 | indoor | yes | T4 | fits four but has no suitable adjacent table |
-| T2 | 4 | indoor | yes | T3 | valid first table |
-| T3 | 2 | indoor | yes | T2 | valid adjacent second table |
-| T4 | 4 | outdoor | yes | T1 | fails the indoor requirement |
-| T5 | 6 | indoor | no | T3 | large enough but already reserved |
+| T1 | 4 | 室内 | 是 | T4 | 容纳 4 人但没有合适的相邻桌位 |
+| T2 | 4 | 室内 | 是 | T3 | 有效的第一张桌位 |
+| T3 | 2 | 室内 | 是 | T2 | 有效的相邻第二张桌位 |
+| T4 | 4 | 室外 | 是 | T1 | 不符合室内要求 |
+| T5 | 6 | 室内 | 否 | T3 | 容量足够但已被预订 |
 
-The service enforces capacity, overlap, and permissions when creating reservations. The Verifier checks the required reservations and prohibited changes from independent initial and final state.
+该服务在创建预订时强制执行容量、重叠和权限规则。Verifier 通过独立的初始和最终状态检查所需的预订及被禁止的更改。
 
-### Coding agent
+### 代码智能体 (Coding agent)
 
-Task: fix checkout totals without breaking discounts.
+任务：修复结账总额计算问题，同时不破坏折扣逻辑。
 
-Bad: one failing test that reveals the expected implementation and no existing discount coverage.
+反例：单个失败的测试直接暴露了预期的实现，且缺乏对现有折扣的测试覆盖。
 
-| Workspace item | Why included |
+| 工作区项目 | 包含原因 |
 |---|---|
-| Public failing checkout-total test | reproduces the reported behavior |
-| Existing percentage- and fixed-discount tests | define behavior that must remain valid |
-| Hidden discount-plus-tax regression | checks the outcome without revealing the fix |
-| Two plausible calculation paths in repository code | requires diagnosis rather than editing a named line |
+| 公开的结账总额失败测试 | 复现报告的行为 |
+| 现有的百分比和固定折扣测试 | 定义必须保持有效的行为 |
+| 隐藏的“折扣加税费”回归测试 | 在不泄露修复方案的情况下检查结果 |
+| 代码库中两条合理的计算路径 | 要求进行诊断而不是直接编辑指定的代码行 |
 
-Pin the repository revision and dependency lockfiles. Use a writable task workspace and the real build and test commands when safe and deterministic. Reset by restoring the pinned workspace and removing trial-generated files. Simulate an external service only when the task reaches it.
+固定代码库版本和依赖锁定文件（lockfiles）。在安全且具有确定性的情况下，使用可写的任务工作区以及真实的构建和测试命令。通过恢复固定版本的工作区并移除试验生成的文件来进行重置。仅在任务触及外部服务时才对其进行模拟。
 
-## State, evidence, and isolation
+## 状态、证据与隔离
 
-For mutable controlled dependencies, create one backend instance and state store per trial. Preserve state across turns, then reset from a declared baseline even after Harness, timeout, or Verifier failures. Make reset idempotent.
+对于可变受控依赖项，每次试验创建一个后端实例和状态存储。在多轮交互中保持状态，即使在 Harness、超时或 Verifier 失败后，也能从声明的基线进行重置。确保重置操作具有幂等性。
 
-Record non-secret task-relevant requests, responses, errors, and mutations as they occur. Preserve initial and final state for verification.
+在发生非机密的任务相关请求、响应、错误和状态变更时实时记录它们。保留初始和最终状态以供验证。
 
-Document each simulated operation in `environment.md`: request schema, response schema, relevant
-errors, state changes, permissions, reset behavior, and known production differences. Also document
-synthetic record types, counts, key relationships, initial mutable state, and why each nontrivial
-distractor exists.
+在 `environment.md` 中记录每个模拟操作：请求模式、响应模式、相关错误、状态变更、权限、重置行为以及已知的生产差异。同时记录合成记录类型、数量、关键关系、初始可变状态，以及每个非简单干扰项存在的原因。
 
-The Harness sees state through the same interface it has in production. The Verifier may inspect raw final state after the run through a boundary unavailable to the Harness. Example: the Harness can list tables and create reservations; the service owns `reservations.sqlite`; the Verifier reads final rows, but the Harness cannot open that database or call a `dump_state` endpoint. Keep expected outcomes, judge rules, and hidden tests unavailable to the Harness.
+Harness 通过与生产环境相同的接口感知状态。Verifier 可以在运行后通过 Harness 无法访问的边界检查原始最终状态。示例：Harness 可以列出桌位并创建预订；服务拥有 `reservations.sqlite`；Verifier 可以读取最终的数据行，但 Harness 无法打开该数据库或调用 `dump_state` 端点。确保 Harness 无法获取预期结果、裁判规则和隐藏测试。
 
-Default to no production access. Allow only approved live hosts and pass credentials at runtime, never through images, prompts, fixtures, or logs.
+默认禁止访问生产环境。仅允许已批准的实时主机，并在运行时传递凭据，绝不要通过镜像、提示词、fixture 或日志传递凭据。
 
-## Validate
+## 验证
 
-Before accepting the Environment:
+在接受该环境之前：
 
-1. Call every operation exercised by the task and check its response shape.
-2. Confirm relevant valid actions succeed and invalid actions fail for the right reason.
-3. Confirm mutations are observable and two resets produce the same baseline.
-4. When an approved production read or fixture exists, send the same fixed request through it and the replacement; compare response schema, ordering, permissions, and errors, then record known differences.
-5. For a complex scenario whose solvability is uncertain, run one reference path. It proves reachability but never constrains the Harness's tool sequence; the Verifier must accept equivalent successful states.
-6. Run the real Harness through Harbor and confirm the Environment created the intended decision rather than leaking the answer or causing an infrastructure failure.
+1. 调用任务所涉及的每个操作，并检查其响应结构。
+2. 确认相关的有效操作成功，无效操作因正确的原因失败。
+3. 确认状态变更是可观察的，并且两次重置会产生相同的基线。
+4. 当存在已批准的生产读取或 fixture 时，通过它和替代组件发送相同的固定请求；对比响应模式、排序、权限和错误，然后记录已知的差异。
+5. 对于可解性不确定的复杂场景，运行一条参考路径。该路径仅证明可达性，绝不限制 Harness 的工具调用序列；Verifier 必须接受等效的成功状态。
+6. 通过 Harbor 运行真实的 Harness，并确认环境触发了预期的决策，而不是泄露答案或导致基础设施故障。

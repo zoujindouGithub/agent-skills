@@ -59,4 +59,4 @@
 - 优先更新高频使用组件（Button, Card, Input, Text）
 - 低频组件可后续迭代补充
 - 第三方库组件（图表、地图）暂时使用覆盖样式，后续评估原生支持
-- 视觉回归测试截图列表见 `design.md` Testing Strategy 部分
+- 视觉回归测试截图列表见 `design.md` 测试策略（Testing Strategy）部分

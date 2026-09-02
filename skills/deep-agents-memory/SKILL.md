@@ -1,61 +1,61 @@
 ---
 name: deep-agents-memory
-description: "INVOKE THIS SKILL when your Deep Agent needs memory, persistence, or filesystem access. Covers StateBackend (ephemeral), StoreBackend (persistent), FilesystemMiddleware, and CompositeBackend for routing."
+description: "当你的 Deep Agent 需要记忆、持久化或文件系统访问时调用此 SKILL。涵盖 StateBackend（临时）、StoreBackend（持久化）、FilesystemMiddleware 以及用于路由的 CompositeBackend。"
 ---
 
 <overview>
-Deep Agents use pluggable backends for file operations and memory:
+Deep Agent 使用可插拔后端进行文件操作和记忆管理：
 
-**Short-term (StateBackend)**: Persists within a single thread, lost when thread ends
-**Long-term (StoreBackend)**: Persists across threads and sessions
-**Hybrid (CompositeBackend)**: Route different paths to different backends
+**短期（StateBackend）**：在单个线程（thread）内持久化，线程结束时丢失
+**长期（StoreBackend）**：跨线程和跨会话持久化
+**混合（CompositeBackend）**：将不同路径路由到不同的后端
 
-FilesystemMiddleware provides tools: `ls`, `read_file`, `write_file`, `edit_file`, `glob`, `grep`
+FilesystemMiddleware 提供了以下工具：`ls`、`read_file`、`write_file`、`edit_file`、`glob`、`grep`
 </overview>
 
 <backend-selection>
 
-| Use Case | Backend | Why |
+| 使用场景 | 后端 | 原因 |
 |----------|---------|-----|
-| Temporary working files | StateBackend | Default, no setup |
-| Local development CLI | FilesystemBackend | Direct disk access |
-| Cross-session memory | StoreBackend | Persists across threads |
-| Hybrid storage | CompositeBackend | Mix ephemeral + persistent |
+| 临时工作文件 | StateBackend | 默认配置，无需额外设置 |
+| 本地开发 CLI | FilesystemBackend | 直接访问磁盘 |
+| 跨会话记忆 | StoreBackend | 跨线程持久化 |
+| 混合存储 | CompositeBackend | 混合使用临时 + 持久化存储 |
 
 </backend-selection>
 
 <ex-default-state-backend>
 <python>
-Default StateBackend stores files ephemerally within a thread.
+默认的 StateBackend 在线程内临时存储文件。
 
 ```python
 from deepagents import create_deep_agent
 
-agent = create_deep_agent()  # Default: StateBackend
+agent = create_deep_agent()  # 默认：StateBackend
 result = agent.invoke({
     "messages": [{"role": "user", "content": "Write notes to /draft.txt"}]
 }, config={"configurable": {"thread_id": "thread-1"}})
-# /draft.txt is lost when thread ends
+# 线程结束时 /draft.txt 将丢失
 ```
 </python>
 <typescript>
-Default StateBackend stores files ephemerally within a thread.
+默认的 StateBackend 在线程内临时存储文件。
 
 ```typescript
 import { createDeepAgent } from "deepagents";
 
-const agent = await createDeepAgent();  // Default: StateBackend
+const agent = await createDeepAgent();  // 默认：StateBackend
 const result = await agent.invoke({
   messages: [{ role: "user", content: "Write notes to /draft.txt" }]
 }, { configurable: { thread_id: "thread-1" } });
-// /draft.txt is lost when thread ends
+// 线程结束时 /draft.txt 将丢失
 ```
 </typescript>
 </ex-default-state-backend>
 
 <ex-composite-backend-for-hybrid>
 <python>
-Configure CompositeBackend to route paths to different storage backends.
+配置 CompositeBackend 将路径路由到不同的存储后端。
 
 ```python
 from deepagents import create_deep_agent
@@ -71,12 +71,12 @@ composite_backend = lambda rt: CompositeBackend(
 
 agent = create_deep_agent(backend=composite_backend, store=store)
 
-# /draft.txt -> ephemeral (StateBackend)
-# /memories/user-prefs.txt -> persistent (StoreBackend)
+# /draft.txt -> 临时 (StateBackend)
+# /memories/user-prefs.txt -> 持久化 (StoreBackend)
 ```
 </python>
 <typescript>
-Configure CompositeBackend to route paths to different storage backends.
+配置 CompositeBackend 将路径路由到不同的存储后端。
 
 ```typescript
 import { createDeepAgent, CompositeBackend, StateBackend, StoreBackend } from "deepagents";
@@ -92,44 +92,44 @@ const agent = await createDeepAgent({
   store
 });
 
-// /draft.txt -> ephemeral (StateBackend)
-// /memories/user-prefs.txt -> persistent (StoreBackend)
+// /draft.txt -> 临时 (StateBackend)
+// /memories/user-prefs.txt -> 持久化 (StoreBackend)
 ```
 </typescript>
 </ex-composite-backend-for-hybrid>
 
 <ex-cross-session-memory>
 <python>
-Files in /memories/ persist across threads via StoreBackend routing.
+/memories/ 中的文件通过 StoreBackend 路由跨线程持久化。
 
 ```python
-# Using CompositeBackend from previous example
+# 使用前例中的 CompositeBackend
 config1 = {"configurable": {"thread_id": "thread-1"}}
 agent.invoke({"messages": [{"role": "user", "content": "Save to /memories/style.txt"}]}, config=config1)
 
 config2 = {"configurable": {"thread_id": "thread-2"}}
 agent.invoke({"messages": [{"role": "user", "content": "Read /memories/style.txt"}]}, config=config2)
-# Thread 2 can read file saved by Thread 1
+# 线程 2 可以读取线程 1 保存的文件
 ```
 </python>
 <typescript>
-Files in /memories/ persist across threads via StoreBackend routing.
+/memories/ 中的文件通过 StoreBackend 路由跨线程持久化。
 
 ```typescript
-// Using CompositeBackend from previous example
+// 使用前例中的 CompositeBackend
 const config1 = { configurable: { thread_id: "thread-1" } };
 await agent.invoke({ messages: [{ role: "user", content: "Save to /memories/style.txt" }] }, config1);
 
 const config2 = { configurable: { thread_id: "thread-2" } };
 await agent.invoke({ messages: [{ role: "user", content: "Read /memories/style.txt" }] }, config2);
-// Thread 2 can read file saved by Thread 1
+// 线程 2 可以读取线程 1 保存的文件
 ```
 </typescript>
 </ex-cross-session-memory>
 
 <ex-filesystem-backend-local-dev>
 <python>
-Use FilesystemBackend for local development with real disk access and human-in-the-loop.
+在本地开发中使用 FilesystemBackend 进行实际磁盘访问并支持人机协同（human-in-the-loop）。
 
 ```python
 from deepagents import create_deep_agent
@@ -137,16 +137,16 @@ from deepagents.backends import FilesystemBackend
 from langgraph.checkpoint.memory import MemorySaver
 
 agent = create_deep_agent(
-    backend=FilesystemBackend(root_dir=".", virtual_mode=True),  # Restrict access
+    backend=FilesystemBackend(root_dir=".", virtual_mode=True),  # 限制访问路径
     interrupt_on={"write_file": True, "edit_file": True},
     checkpointer=MemorySaver()
 )
 
-# Agent can read/write actual files on disk
+# Agent 可以读写磁盘上的实际文件
 ```
 </python>
 <typescript>
-Use FilesystemBackend for local development with real disk access and human-in-the-loop.
+在本地开发中使用 FilesystemBackend 进行实际磁盘访问并支持人机协同（human-in-the-loop）。
 
 ```typescript
 import { createDeepAgent, FilesystemBackend } from "deepagents";
@@ -160,12 +160,12 @@ const agent = await createDeepAgent({
 ```
 </typescript>
 
-**Security: Never use FilesystemBackend in web servers - use StateBackend or sandbox instead.**
+**安全性：切勿在 Web 服务器中使用 FilesystemBackend——请改用 StateBackend 或沙箱（sandbox）。**
 </ex-filesystem-backend-local-dev>
 
 <ex-store-in-custom-tools>
 <python>
-Access the store directly in custom tools for long-term memory operations.
+在自定义工具中直接访问 store 以执行长期记忆操作。
 
 ```python
 from langchain.tools import tool, ToolRuntime
@@ -174,14 +174,14 @@ from langgraph.store.memory import InMemoryStore
 
 @tool
 def get_user_preference(key: str, runtime: ToolRuntime) -> str:
-    """Get a user preference from long-term storage."""
+    """从长期存储中获取用户偏好设置。"""
     store = runtime.store
     result = store.get(("user_prefs",), key)
     return str(result.value) if result else "Not found"
 
 @tool
 def save_user_preference(key: str, value: str, runtime: ToolRuntime) -> str:
-    """Save a user preference to long-term storage."""
+    """将用户偏好设置保存到长期存储中。"""
     store = runtime.store
     store.put(("user_prefs",), key, {"value": value})
     return f"Saved {key}={value}"
@@ -198,40 +198,40 @@ agent = create_agent(
 </ex-store-in-custom-tools>
 
 <boundaries>
-### What Agents CAN Configure
+### Agent 可以配置的内容
 
-- Backend type and configuration
-- Routing rules for CompositeBackend
-- Root directory for FilesystemBackend
-- Human-in-the-loop for file operations
+- 后端类型与配置
+- CompositeBackend 的路由规则
+- FilesystemBackend 的根目录
+- 文件操作的人机协同（Human-in-the-loop）
 
-### What Agents CANNOT Configure
+### Agent 不能配置的内容
 
-- Tool names (ls, read_file, write_file, edit_file, glob, grep)
-- Access files outside virtual_mode restrictions
-- Cross-thread file access without proper backend setup
+- 工具名称（ls、read_file、write_file、edit_file、glob、grep）
+- 访问 virtual_mode 限制之外的文件
+- 在没有正确配置后端的情况下进行跨线程文件访问
 </boundaries>
 
 <fix-storebackend-requires-store>
 <python>
-StoreBackend requires a store instance.
+StoreBackend 需要一个 store 实例。
 
 ```python
-# WRONG
+# 错误
 agent = create_deep_agent(backend=lambda rt: StoreBackend(rt))
 
-# CORRECT
+# 正确
 agent = create_deep_agent(backend=lambda rt: StoreBackend(rt), store=InMemoryStore())
 ```
 </python>
 <typescript>
-StoreBackend requires a store instance.
+StoreBackend 需要一个 store 实例。
 
 ```typescript
-// WRONG
+// 错误
 const agent = await createDeepAgent({ backend: (c) => new StoreBackend(c) });
 
-// CORRECT
+// 正确
 const agent = await createDeepAgent({ backend: (c) => new StoreBackend(c), store: new InMemoryStore() });
 ```
 </typescript>
@@ -239,60 +239,60 @@ const agent = await createDeepAgent({ backend: (c) => new StoreBackend(c), store
 
 <fix-statebackend-files-dont-persist>
 <python>
-StateBackend files are thread-scoped - use same thread_id or StoreBackend for cross-thread access.
+StateBackend 文件作用域仅限于线程——跨线程访问请使用相同的 thread_id 或 StoreBackend。
 
 ```python
-# WRONG: thread-2 can't read file from thread-1
-agent.invoke({"messages": [...]}, config={"configurable": {"thread_id": "thread-1"}})  # Write
-agent.invoke({"messages": [...]}, config={"configurable": {"thread_id": "thread-2"}})  # File not found!
+# 错误：thread-2 无法读取 thread-1 的文件
+agent.invoke({"messages": [...]}, config={"configurable": {"thread_id": "thread-1"}})  # 写入
+agent.invoke({"messages": [...]}, config={"configurable": {"thread_id": "thread-2"}})  # 文件未找到！
 ```
 </python>
 <typescript>
-StateBackend files are thread-scoped - use same thread_id or StoreBackend for cross-thread access.
+StateBackend 文件作用域仅限于线程——跨线程访问请使用相同的 thread_id 或 StoreBackend。
 
 ```typescript
-// WRONG: thread-2 can't read file from thread-1
-await agent.invoke({ messages: [...] }, { configurable: { thread_id: "thread-1" } });  // Write
-await agent.invoke({ messages: [...] }, { configurable: { thread_id: "thread-2" } });  // File not found!
+// 错误：thread-2 无法读取 thread-1 的文件
+await agent.invoke({ messages: [...] }, { configurable: { thread_id: "thread-1" } });  // 写入
+await agent.invoke({ messages: [...] }, { configurable: { thread_id: "thread-2" } });  // 文件未找到！
 ```
 </typescript>
 </fix-statebackend-files-dont-persist>
 
 <fix-path-prefix-for-persistence>
 <python>
-Path must match CompositeBackend route prefix for persistence.
+路径必须匹配 CompositeBackend 路由前缀才能实现持久化。
 
 ```python
-# With routes={"/memories/": StoreBackend(rt)}:
-agent.invoke(...)  # /prefs.txt -> ephemeral (no match)
-agent.invoke(...)  # /memories/prefs.txt -> persistent (matches route)
+# 当 routes={"/memories/": StoreBackend(rt)} 时：
+agent.invoke(...)  # /prefs.txt -> 临时（未匹配）
+agent.invoke(...)  # /memories/prefs.txt -> 持久化（匹配路由）
 ```
 </python>
 <typescript>
-Path must match CompositeBackend route prefix for persistence.
+路径必须匹配 CompositeBackend 路由前缀才能实现持久化。
 
 ```typescript
-// With routes: { "/memories/": StoreBackend }:
-await agent.invoke(...);  // /prefs.txt -> ephemeral (no match)
-await agent.invoke(...);  // /memories/prefs.txt -> persistent (matches route)
+// 当 routes: { "/memories/": StoreBackend } 时：
+await agent.invoke(...);  // /prefs.txt -> 临时（未匹配）
+await agent.invoke(...);  // /memories/prefs.txt -> 持久化（匹配路由）
 ```
 </typescript>
 </fix-path-prefix-for-persistence>
 
 <fix-production-store>
 <python>
-Use PostgresStore for production (InMemoryStore lost on restart).
+生产环境中请使用 PostgresStore（InMemoryStore 在重启时会丢失数据）。
 
 ```python
-# WRONG                              # CORRECT
+# 错误                               # 正确
 store = InMemoryStore()              store = PostgresStore(connection_string="postgresql://...")
 ```
 </python>
 <typescript>
-Use PostgresStore for production (InMemoryStore lost on restart).
+生产环境中请使用 PostgresStore（InMemoryStore 在重启时会丢失数据）。
 
 ```typescript
-// WRONG                                    // CORRECT
+// 错误                                     // 正确
 const store = new InMemoryStore();          const store = new PostgresStore({ connectionString: "..." });
 ```
 </typescript>
@@ -300,21 +300,21 @@ const store = new InMemoryStore();          const store = new PostgresStore({ co
 
 <fix-filesystem-backend-needs-virtual-mode>
 <python>
-Enable virtual_mode=True to restrict path access (prevents ../ and ~/ escapes).
+启用 virtual_mode=True 限制路径访问（防止 ../ 和 ~/ 越界逃逸）。
 
 ```python
-backend = FilesystemBackend(root_dir="/project", virtual_mode=True)  # Secure
+backend = FilesystemBackend(root_dir="/project", virtual_mode=True)  # 安全
 ```
 </python>
 </fix-filesystem-backend-needs-virtual-mode>
 
 <fix-longest-prefix-match>
 <python>
-CompositeBackend matches longest prefix first.
+CompositeBackend 优先匹配最长前缀。
 
 ```python
 routes = {"/mem/": StoreBackend(rt), "/mem/temp/": StateBackend(rt)}
-# /mem/file.txt -> StoreBackend, /mem/temp/file.txt -> StateBackend (longer match)
+# /mem/file.txt -> StoreBackend, /mem/temp/file.txt -> StateBackend（匹配更长前缀）
 ```
 </python>
 </fix-longest-prefix-match>

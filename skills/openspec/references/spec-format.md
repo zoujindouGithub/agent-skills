@@ -24,7 +24,7 @@ openspec/changes/<change-name>/specs/
     └── spec.md
 ```
 
-一个变更可以影响多个 capability，每个 capability 一个 spec.md。
+一个变更可以影响多个 capability，每个 capability 对应一个 spec.md。
 
 ### Main Specs（项目级）
 
@@ -34,7 +34,7 @@ openspec/specs/
     └── spec.md
 ```
 
-描述系统当前完整行为，是"源真相"。
+描述系统当前的完整行为，是“唯一事实来源（Single Source of Truth）”。
 
 ---
 
@@ -99,11 +99,11 @@ Main Specs 不使用 Delta 标记，直接描述当前系统行为：
 
 ### 需求标题
 
-使用简洁、描述性的标题：
+使用简洁、具有描述性的标题：
 
 ```markdown
 ### Requirement: 用户会话过期
-### Requirement: 两因素认证
+### Requirement: 双因子认证
 ### Requirement: 密码重置流程
 ```
 
@@ -121,8 +121,8 @@ Main Specs 不使用 Delta 标记，直接描述当前系统行为：
 
 ### 需求粒度
 
-- 每个需求聚焦单一行为
-- 避免"和"、"或"连接多个独立行为
+- 每个需求聚焦于单一行为
+- 避免使用“和”、“或”连接多个独立行为
 - 复杂需求拆分为多个独立需求
 
 **反例**（过于复杂）：
@@ -164,8 +164,8 @@ Main Specs 不使用 Delta 标记，直接描述当前系统行为：
 
 ```markdown
 #### Scenario: 默认会话超时
-#### Scenario: 记住我扩展会话
-#### Scenario: 管理员强制登出所有用户
+#### Scenario: 记住我延长会话
+#### Scenario: 管理员强制注销所有用户
 ```
 
 避免模糊名称：
@@ -177,7 +177,7 @@ Main Specs 不使用 Delta 标记，直接描述当前系统行为：
 
 ### Given 子句
 
-描述系统状态，而非用户状态：
+描述系统状态，而非用户心理状态：
 
 **反例**：
 ```markdown
@@ -187,7 +187,7 @@ Main Specs 不使用 Delta 标记，直接描述当前系统行为：
 **正例**：
 ```markdown
 - **GIVEN** 用户已注册且账户处于激活状态
-- **GIVEN** 系统配置会话超时为 24 小时
+- **GIVEN** 系统配置会话超时时间为 24 小时
 ```
 
 ### When 子句
@@ -197,7 +197,7 @@ Main Specs 不使用 Delta 标记，直接描述当前系统行为：
 ```markdown
 - **WHEN** 用户提交有效的用户名和密码
 - **WHEN** 24 小时内无任何活动
-- **WHEN** 管理员调用强制登出 API
+- **WHEN** 管理员调用强制注销 API
 ```
 
 ### Then 子句
@@ -207,7 +207,7 @@ Main Specs 不使用 Delta 标记，直接描述当前系统行为：
 ```markdown
 - **THEN** 系统返回认证令牌
 - **THEN** 会话令牌被标记为无效
-- **THEN** 系统向用户发送登出通知邮件
+- **THEN** 系统向用户发送注销通知邮件
 ```
 
 避免模糊描述：
@@ -220,7 +220,7 @@ Main Specs 不使用 Delta 标记，直接描述当前系统行为：
 ### 多场景覆盖
 
 每个需求应覆盖：
-- 主路径（Happy Path）
+- 正常流程（Happy Path）
 - 边界条件
 - 错误处理
 - 并发/时序场景（如适用）
@@ -230,28 +230,28 @@ Main Specs 不使用 Delta 标记，直接描述当前系统行为：
 系统 SHALL 验证用户凭据并建立认证会话。
 
 #### Scenario: 有效凭据登录
-- **GIVEN** 用户已注册且账户激活
+- **GIVEN** 用户已注册且账户处于激活状态
 - **WHEN** 用户提交有效的用户名和密码
 - **THEN** 系统返回认证令牌
 - **AND** 记录登录事件到审计日志
 
-#### Scenario: 无效密码
-- **GIVEN** 用户已注册且账户激活
+#### Scenario: 密码错误
+- **GIVEN** 用户已注册且账户处于激活状态
 - **WHEN** 用户提交有效的用户名和错误的密码
 - **THEN** 系统返回 401 Unauthorized
-- **AND** 增加失败登录计数
+- **AND** 递增失败登录计数
 
 #### Scenario: 账户已锁定
-- **GIVEN** 用户账户因连续 5 次失败登录被锁定
+- **GIVEN** 用户账户因连续 5 次登录失败而被锁定
 - **WHEN** 用户提交任何凭据
 - **THEN** 系统返回 423 Locked
 - **AND** 提示用户联系管理员解锁
 
 #### Scenario: 并发登录限制
-- **GIVEN** 用户已在设备 A 登录
-- **WHEN** 用户在设备 B 登录且系统配置为单设备会话
+- **GIVEN** 用户已在设备 A 上登录
+- **WHEN** 用户在设备 B 上登录且系统配置为单设备会话
 - **THEN** 系统使设备 A 的会话失效
-- **AND** 在设备 B 建立新会话
+- **AND** 在设备 B 上建立新会话
 ```
 
 ---
@@ -260,7 +260,7 @@ Main Specs 不使用 Delta 标记，直接描述当前系统行为：
 
 ### ADDED
 
-全新功能需求。归档时追加到 Main Specs。
+全新的功能需求。归档时追加到 Main Specs 中。
 
 ```markdown
 ## ADDED Requirements
@@ -269,7 +269,7 @@ Main Specs 不使用 Delta 标记，直接描述当前系统行为：
 系统 SHALL 支持深色模式主题切换。
 
 #### Scenario: 用户切换主题
-- **GIVEN** 用户处于浅色模式
+- **GIVEN** 用户当前处于浅色模式
 - **WHEN** 用户点击主题切换按钮
 - **THEN** 界面切换为深色模式
 - **AND** 将用户偏好保存到 localStorage
@@ -279,7 +279,7 @@ Main Specs 不使用 Delta 标记，直接描述当前系统行为：
 
 修改现有逻辑。归档时替换 Main Specs 中的对应需求。
 
-**必须包含完整修订后文本**，而非仅描述差异：
+**必须包含修改后的完整文本**，而不仅是描述差异：
 
 ```markdown
 ## MODIFIED Requirements
@@ -289,11 +289,11 @@ Main Specs 不使用 Delta 标记，直接描述当前系统行为：
 
 #### Scenario: 默认会话超时
 - **GIVEN** 用户已认证
-- **WHEN** 24 小时无活动且未勾选"记住我"
+- **WHEN** 24 小时无活动且未勾选“记住我”
 - **THEN** 使会话令牌失效
 
-#### Scenario: 扩展会话
-- **GIVEN** 用户在登录时勾选"记住我"
+#### Scenario: 延长会话
+- **GIVEN** 用户在登录时勾选了“记住我”
 - **WHEN** 30 天已过
 - **THEN** 使会话令牌失效
 - **AND** 清除持久化 Cookie
@@ -301,40 +301,40 @@ Main Specs 不使用 Delta 标记，直接描述当前系统行为：
 
 ### REMOVED
 
-废弃功能。归档时从 Main Specs 中移除或标记为已删除。
+已废弃的功能。归档时从 Main Specs 中移除或标记为已删除。
 
 ```markdown
 ## REMOVED Requirements
 
 ### Requirement: 旧版 OAuth 1.0 支持
-移除原因：OAuth 1.0 已被 OAuth 2.0 + PKCE 完全替代，不再维护。
+移除原因：OAuth 1.0 已被 OAuth 2.0 + PKCE 完全替代，不再进行维护。
 ```
 
 ---
 
 ## 合并规则
 
-归档时，Delta Specs 按以下规则合并到 Main Specs：
+归档时，Delta Specs 按以下规则合并到 Main Specs 中：
 
 ### ADDED → 追加
 
-在对应 capability 的 Main Spec 中追加新需求。
+在对应 capability 的 Main Spec 中追加新增需求。
 
 ### MODIFIED → 替换
 
-找到 Main Spec 中对应的需求，用 Delta 中的完整修订文本替换。
+在 Main Spec 中查找对应的需求，用 Delta 中的完整修订文本进行替换。
 
 ### REMOVED → 删除或标记
 
-- 默认：物理移除需求文本
-- 可选：保留但标记为 `~~已删除~~`，附移除原因和日期
+- 默认：物理删除需求文本
+- 可选：保留但标记为 `~~已删除~~`，并附带移除原因与日期
 
 ### 冲突处理
 
-如果多个变更同时修改同一需求：
+当多个变更同时修改同一需求时：
 1. 后归档的变更覆盖先归档的变更
-2. 或根据变更创建时间戳决定优先级
-3. 复杂冲突需要人工介入
+2. 或根据变更创建的时间戳决定优先级
+3. 复杂冲突需人工介入解决
 
 ---
 
@@ -354,9 +354,9 @@ Main Specs 不使用 Delta 标记，直接描述当前系统行为：
 
 ```markdown
 ### Requirement: 密码策略
-系统 SHALL 要求密码长度至少 12 个字符。
+系统 SHALL 要求密码长度至少为 12 个字符。
 系统 SHALL NOT 允许使用常见密码（如 "password123"）。
-系统 SHOULD 提示用户启用两因素认证。
+系统 SHOULD 提示用户启用双因子认证。
 系统 MAY 支持生物识别认证作为替代方案。
 ```
 
@@ -370,15 +370,15 @@ Main Specs 不使用 Delta 标记，直接描述当前系统行为：
 ## ADDED Requirements
 
 ### Requirement: 深色模式支持
-系统 SHALL 支持深色模式主题切换，以提升低光环境下的用户体验。
+系统 SHALL 支持深色模式主题切换，以提升弱光环境下的用户体验。
 
 #### Scenario: 用户手动切换主题
-- **GIVEN** 用户处于浅色模式
+- **GIVEN** 用户当前处于浅色模式
 - **WHEN** 用户点击设置中的主题切换开关
 - **THEN** 界面立即应用深色模式样式
-- **AND** 将 "dark" 保存到 localStorage 的 "theme" 键
+- **AND** 将 "dark" 保存到 localStorage 的 "theme" 键中
 
-#### Scenario: 系统主题偏好跟随
+#### Scenario: 跟随系统主题偏好
 - **GIVEN** 用户首次访问且未设置过主题偏好
 - **WHEN** 系统检测到操作系统偏好为深色模式
 - **THEN** 默认应用深色模式
@@ -393,12 +393,12 @@ Main Specs 不使用 Delta 标记，直接描述当前系统行为：
 ## MODIFIED Requirements
 
 ### Requirement: 设置页面布局
-设置页面 SHALL 支持分组展示配置项，主题设置作为独立分组。
+设置页面 SHALL 支持分组展示配置项，主题设置作为独立分组展示。
 
 #### Scenario: 访问设置页面
 - **GIVEN** 用户已登录
 - **WHEN** 用户导航到 /settings
-- **THEN** 页面显示"外观"分组，包含主题切换开关
+- **THEN** 页面显示“外观”分组，包含主题切换开关
 - **AND** 显示当前选中的主题名称
 ```
 
@@ -410,15 +410,15 @@ Main Specs 不使用 Delta 标记，直接描述当前系统行为：
 ## Requirements
 
 ### Requirement: 深色模式支持
-系统 SHALL 支持深色模式主题切换，以提升低光环境下的用户体验。
+系统 SHALL 支持深色模式主题切换，以提升弱光环境下的用户体验。
 
 #### Scenario: 用户手动切换主题
-- **GIVEN** 用户处于浅色模式
+- **GIVEN** 用户当前处于浅色模式
 - **WHEN** 用户点击设置中的主题切换开关
 - **THEN** 界面立即应用深色模式样式
-- **AND** 将 "dark" 保存到 localStorage 的 "theme" 键
+- **AND** 将 "dark" 保存到 localStorage 的 "theme" 键中
 
-#### Scenario: 系统主题偏好跟随
+#### Scenario: 跟随系统主题偏好
 - **GIVEN** 用户首次访问且未设置过主题偏好
 - **WHEN** 系统检测到操作系统偏好为深色模式
 - **THEN** 默认应用深色模式
@@ -431,12 +431,12 @@ Main Specs 不使用 Delta 标记，直接描述当前系统行为：
 - **AND** 应用对应的主题样式
 
 ### Requirement: 设置页面布局
-设置页面 SHALL 支持分组展示配置项，主题设置作为独立分组。
+设置页面 SHALL 支持分组展示配置项，主题设置作为独立分组展示。
 
 #### Scenario: 访问设置页面
 - **GIVEN** 用户已登录
 - **WHEN** 用户导航到 /settings
-- **THEN** 页面显示"外观"分组，包含主题切换开关
+- **THEN** 页面显示“外观”分组，包含主题切换开关
 - **AND** 显示当前选中的主题名称
 ```
 
@@ -453,27 +453,27 @@ Main Specs 不使用 Delta 标记，直接描述当前系统行为：
 - **THEN** 系统应该正常工作
 ```
 
-### 2. 技术实现细节泄露
+### 2. 泄露技术实现细节
 
 ```markdown
 ### Requirement: 用户登录
-系统 SHALL 使用 JWT 令牌存储在 Redis 中，过期时间设置为 3600 秒。
+系统 SHALL 使用存储在 Redis 中的 JWT 令牌，过期时间设置为 3600 秒。
 ```
 
-**修正**：技术细节应放在 `design.md`，spec 只描述行为：
+**修正**：技术细节应放在 `design.md` 中，spec 仅描述行为：
 
 ```markdown
 ### Requirement: 用户登录
-系统 SHALL 验证用户凭据并建立有时效性的认证会话。
+系统 SHALL 验证用户凭据并建立具有时效性的认证会话。
 ```
 
 ### 3. 过度拆分
 
-将紧密耦合的行为拆成过多独立需求，导致阅读困难。
+将紧密耦合的行为拆分为过多独立需求，导致阅读与维护困难。
 
 ### 4. 忽略边界条件
 
-只写 Happy Path，不处理错误、异常、边界情况。
+只写正常流程（Happy Path），不处理错误、异常和边界情况。
 
 ### 5. 使用被动语态
 

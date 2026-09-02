@@ -1,92 +1,92 @@
 ---
 name: managed-deep-agents
-description: "INVOKE THIS SKILL when building, testing, or deploying Managed Deep Agents in LangSmith with the mda CLI. Walks a user through their first agent end to end — interviewing them about what they want to build, mapping it onto what MDA can actually do, then scaffolding and deploying it. Covers the file-based project layout; define_deep_agent / defineDeepAgent; instructions, skills, memory, identity, tools, middleware, sandboxes, schedules, channels, and evals; mda init/build/dev/deploy/logs/delete; and Context Hub."
+description: "当使用 mda CLI 在 LangSmith 中构建、测试或部署托管深度智能体（Managed Deep Agents）时调用此技能。引导用户端到端完成其第一个智能体的构建——调研其构建需求，将其映射到 MDA 实际支持的功能，然后进行脚手架搭建与部署。内容涵盖基于文件的项目布局；define_deep_agent / defineDeepAgent；指令（instructions）、技能（skills）、记忆（memory）、身份认证（identity）、工具（tools）、中间件（middleware）、沙箱（sandboxes）、定时调度（schedules）、通道（channels）以及评测（evals）；mda init/build/dev/deploy/logs/delete 命令；以及 Context Hub。"
 ---
 
-# Managed Deep Agents
+# 托管深度智能体 (Managed Deep Agents)
 
-## Overview
+## 概述
 
-Managed Deep Agents (MDA) is a hosted runtime for code-first Deep Agents in LangSmith. You author an agent in Python or TypeScript, test it locally with `mda dev`, and ship it with `mda deploy`. It pairs the open-source Deep Agents harness (see [[deep-agents-core]]) with managed infrastructure: durable runs, sandboxes, Context Hub-backed instructions and skills, memory, traces, and hosted LangGraph deployment.
+托管深度智能体（Managed Deep Agents，简称 MDA）是 LangSmith 中面向“代码优先（code-first）”深度智能体的托管运行时。你可以使用 Python 或 TypeScript 编写智能体，通过 `mda dev` 在本地进行测试，并使用 `mda deploy` 进行发布。它将开源的 Deep Agents 框架（参见 [[deep-agents-core]]）与托管基础设施相结合：持久化运行、沙箱、基于 Context Hub 的指令和技能、记忆、链路追踪（traces）以及托管的 LangGraph 部署。
 
-The core idea is that **an agent is a directory**. A file's location determines its role, and the CLI compiles that directory into a managed LangGraph app.
+其核心理念是**智能体即目录**。文件的存放位置决定了其角色，CLI 会将该目录编译为一个托管的 LangGraph 应用。
 
-MDA is in **public beta** and runs on **US LangSmith Cloud only**.
+MDA 目前处于**公开公测阶段（public beta）**，且**仅运行在 US LangSmith Cloud（美区）**。
 
-## When to use
+## 适用场景
 
-Use this skill when the user wants to build a Deep Agent in code and run it on LangSmith without operating their own server, or to add tools, middleware, memory, identity, schedules, channels, skills, sandboxes, or evals to one.
+当用户希望通过代码构建深度智能体并在 LangSmith 上运行（无需自行运维服务器），或为其添加工具、中间件、记忆、身份认证、定时调度、通道、技能、沙箱或评测时，请使用此技能。
 
-Use a standard LangSmith Deployment instead (see [[langgraph-cli]], `langgraph deploy`) when the user needs custom application code, custom HTTP routes, authentication beyond a LangSmith key or Supabase, stronger isolation, maximum scalability, or a region other than US.
+当用户需要自定义应用程序代码、自定义 HTTP 路由、除 LangSmith 密钥或 Supabase 之外的身份认证、更强的隔离性、最大化的可扩展性或美区以外的其他地域时，应改用标准 LangSmith 部署（参见 [[langgraph-cli]] 中的 `langgraph deploy`）。
 
 ---
 
-# Guide the user through their first agent
+# 引导用户构建其第一个智能体
 
-When a user is new to MDA, or says anything like "help me build an agent", **do not scaffold immediately**. Run this flow. It costs two questions and prevents building something the platform cannot host.
+当用户刚接触 MDA，或提出类似“帮我构建一个智能体”的请求时，**不要立即生成项目脚手架**。请遵循以下流程。只需提问两三个问题，即可避免构建出平台无法托管的内容。
 
 ```text
-ask what they want to build -> check it against the limits -> confirm the shape
--> scaffold -> wire the smallest thing that runs -> mda dev -> deploy
+询问用户想构建什么 -> 对照限制进行核对 -> 确认架构方案
+-> 生成脚手架 -> 接入最简可行代码 -> mda dev -> 部署
 ```
 
-## 1. Ask what they want to build
+## 1. 询问用户想构建什么
 
-Ask in plain language, not in MDA vocabulary. The user does not yet know what a "channel" or a "sandbox" is.
+使用通俗易懂的语言提问，不要使用 MDA 专业术语。用户此时还不了解什么是“通道（channel）”或“沙箱（sandbox）”。
 
-Ask these two things first:
+首先询问以下两个问题：
 
-- **What should the agent do?** ("Answer questions about our docs", "triage incoming bugs", "post a summary every morning".)
-- **Who or what talks to it, and from where?** (Them in a browser, their app's users, a Slack workspace, nobody — it runs on a timer.)
+- **该智能体需要实现什么功能？**（“回答关于我们文档的问题”、“对收到的 Bug 进行分类排查”、“每天早上发送一份摘要”。）
+- **谁或什么会与它交互，从哪里交互？**（用户在浏览器中、其应用程序的用户、Slack 工作区、无人交互——按定时器自动运行。）
 
-Then ask only the follow-ups that the answers actually raise:
+然后仅提出由上述答案直接引发的后续问题：
 
-- Does it need to remember anything between separate conversations?
-- Does it need to reach a private API, database, or internal service?
-- Should anything require a human to approve before it happens?
-- Does it need to write files or run code?
+- 它是否需要在不同的独立对话之间记住某些信息？
+- 它是否需要访问私有 API、数据库或内部服务？
+- 在执行某些操作之前，是否需要人工审批？
+- 它是否需要写入文件或运行代码？
 
-Stop asking once you can name the capabilities. Two or three questions is usually enough.
+一旦能够明确所需的功能特性，即可停止提问。通常两到三个问题就足够了。
 
-## 2. Check the answer against the limits
+## 2. 对照平台限制核对需求
 
-Before you promise anything, check the request against **[What MDA cannot do](#what-mda-cannot-do)** below. If part of the request is out of scope, say so in one sentence, offer the nearest supported thing, and keep going with the rest. Do not quietly build a smaller agent and present it as what they asked for.
+在做出任何承诺之前，请先对照下方的 **[MDA 不支持的功能](#mda-不支持的功能)** 核对需求。如果请求中的某部分超出了支持范围，请用一句话说明，提供最接近的受支持替代方案，并继续处理其余部分。切勿默默构建一个功能缩水的智能体并将其冒充为用户要求的内容。
 
-The common redirect: if they need custom HTTP routes, their own auth, or non-US hosting, tell them MDA is the wrong layer and point at `langgraph deploy` ([[langgraph-cli]]).
+常见的重定向情况：如果用户需要自定义 HTTP 路由、自建认证体系或非美区托管，请告知他们 MDA 不适用于该层级，并指引他们使用 `langgraph deploy`（[[langgraph-cli]]）。
 
-## 3. Map the answer onto capabilities
+## 3. 将需求映射为具体功能特性
 
-| What the user describes | What to reach for | Where it lives |
+| 用户描述的需求 | 采用的组件/机制 | 存放位置 |
 | --- | --- | --- |
-| How it should behave, its tone, its rules | Instructions | `instructions.md` |
-| Calls our API / database / internal service | Authored tools | `tools/` |
-| A procedure it should follow for certain tasks | Skills | `skills/<name>/SKILL.md` |
-| Remembers things across conversations | Durable memory (read the warning) | `memory.py` |
-| Runs on a timer, no user message | Schedules | `schedules/<name>.py` |
-| Lives in Slack | Channels | `channels/slack.py` |
-| Writes files, runs code or shell commands | Sandbox | `sandbox/__init__.py` |
-| Ask me before it does X | Human-in-the-loop | `interrupt_on=` |
-| Users must not see each other's chats | Supabase identity | `identity.py` |
-| Must return structured data, not prose | Structured output | `response_format=` |
-| Hand off specialized work | Subagents | `subagents=` |
-| PII redaction, call limits, retries, logging | Middleware | `middleware/` |
-| Prove it still works as we change it | Harbor evals | `evals/tasks/` |
+| 行为方式、语气、遵循的规则 | 指令 (Instructions) | `instructions.md` |
+| 调用我们的 API / 数据库 / 内部服务 | 自定义编写的工具 (Authored tools) | `tools/` |
+| 针对特定任务应遵循的标准化流程 | 技能 (Skills) | `skills/<name>/SKILL.md` |
+| 跨对话记住信息 | 持久化记忆 (Durable memory，请阅读警告) | `memory.py` |
+| 定时运行，无需用户发送消息 | 定时调度 (Schedules) | `schedules/<name>.py` |
+| 运行在 Slack 中 | 通道 (Channels) | `channels/slack.py` |
+| 写入文件、运行代码或 Shell 命令 | 沙箱 (Sandbox) | `sandbox/__init__.py` |
+| 在执行 X 操作之前向我请示 | 人机协同 (Human-in-the-loop) | `interrupt_on=` |
+| 用户之间不得查看彼此的对话 | Supabase 身份认证 | `identity.py` |
+| 必须返回结构化数据而非纯文本 | 结构化输出 (Structured output) | `response_format=` |
+| 移交处理专业化任务 | 子智能体 (Subagents) | `subagents=` |
+| PII 脱敏、调用限制、重试、日志记录 | 中间件 (Middleware) | `middleware/` |
+| 验证在迭代变更过程中功能依然正常 | Harbor 评测 (Harbor evals) | `evals/tasks/` |
 
-## 4. Confirm the shape before writing files
+## 4. 在编写文件前确认架构方案
 
-State the plan back in one short block and get agreement. Name the model, and list only the capabilities you are actually going to create:
+用一个简短的代码块复述计划并征得用户同意。指明所使用的模型，并仅列出你实际将要创建的功能特性：
 
 ```text
-research-assistant, Python, on anthropic:claude-sonnet-4-6
-  instructions.md   how it researches and cites
-  tools/search.py   web search
-  schedules/        weekday 8am digest
-  no memory, no sandbox, no channel
+research-assistant, Python, 运行于 anthropic:claude-sonnet-4-6
+  instructions.md   调研与引用规则
+  tools/search.py   网络搜索
+  schedules/        工作日早 8 点摘要
+  无记忆，无沙箱，无通道
 ```
 
-## 5. Scaffold and wire the smallest thing that runs
+## 5. 生成脚手架并接入最简可行代码
 
-Scaffold with the flags that match the plan, so the project starts correct instead of being edited into shape:
+使用与计划匹配的标志（flags）生成脚手架，使项目从一开始就保持准确，而不是后续再进行修剪改动：
 
 ```bash
 mda init research-assistant --model anthropic:claude-sonnet-4-6
@@ -94,95 +94,95 @@ cd research-assistant
 uv sync
 ```
 
-Then add **one** capability at a time and confirm each one works before adding the next. A first agent that answers with good instructions and one real tool is a better starting point than a scaffold with every directory filled in.
+然后**逐一**添加功能特性，并在添加下一个特性之前确认当前特性工作正常。一个包含良好指令和一个真实工具的初版智能体，远比一个每个目录都填满的脚手架更适合作为起点。
 
-Do not create directories the plan did not call for. Empty or unused `skills/`, `channels/`, or `schedules/` directories are noise, and a `sandbox/` directory the user does not need turns on a sandbox they will pay attention to for no reason (`mda init --no-sandbox` skips it).
+切勿创建计划中未要求的目录。空置或未使用的 `skills/`、`channels/` 或 `schedules/` 目录会带来干扰；而用户并不需要的 `sandbox/` 目录则会开启一个他们不得不额外费心关注的沙箱（使用 `mda init --no-sandbox` 可跳过沙箱创建）。
 
-## 6. Handle keys without touching their secrets
+## 6. 处理密钥且不触碰用户敏感凭据
 
-`mda init` writes a `.env` with empty placeholders. Fill in the *names* the project needs and let the user paste the *values*:
+`mda init` 会生成带有空占位符的 `.env` 文件。填写项目所需的*变量名称*，并让用户自行粘贴*具体值*：
 
-- Do not write live credential values into `.env` yourself, and do not copy a key from another project directory.
-- Do not echo key values to the terminal or into your reply.
-- Confirm `.gitignore` covers `.env` and `.env.*` — `mda init` does this already.
+- 切勿自行将真实的凭据值写入 `.env`，也不要从其他项目目录复制密钥。
+- 切勿将密钥值打印到终端或输出在你的回复中。
+- 确认 `.gitignore` 包含了 `.env` 和 `.env.*`（`mda init` 已默认配置）。
 
-The project needs `LANGSMITH_API_KEY` (to deploy) and the provider key its model requires (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, …). Uncomment the right provider line and tell the user to paste both.
+项目需要 `LANGSMITH_API_KEY`（用于部署）以及模型所需的提供商密钥（`ANTHROPIC_API_KEY`、`OPENAI_API_KEY` 等）。取消对应提供商行的注释，并提示用户粘贴这两项密钥。
 
-## 7. Run it locally, then deploy
+## 7. 本地运行，随后部署
 
 ```bash
-mda dev .       # compiles, opens LangSmith Studio, hot reloads
-mda deploy .    # syncs Context Hub, uploads, waits for DEPLOYED
+mda dev .       # 编译、打开 LangSmith Studio、支持热重载
+mda deploy .    # 同步 Context Hub、上传、等待状态变为 DEPLOYED
 ```
 
-Have the user actually send a message in Studio and confirm the agent calls the tool before deploying. `mda deploy` prints the deployment dashboard URL; open it to inspect builds, revisions, and traces.
+在部署之前，让用户实际在 Studio 中发送一条消息，确认智能体成功调用了工具。`mda deploy` 会输出部署控制台的 URL；打开该链接可查看构建记录、修订版本和链路追踪。
 
 ---
 
-## What MDA cannot do
+## MDA 不支持的功能
 
-Check requests against this list *before* agreeing to build them. Being straight about a limit early is cheaper than discovering it at deploy time.
+在同意构建之前，请*务必*对照此列表核对需求。尽早坦白限制比在部署时才发现问题的代价要低得多。
 
-| Limit | Consequence |
+| 限制项 | 影响/后果 |
 | --- | --- |
-| US LangSmith Cloud only | No self-hosted, no hybrid, no EU region. Needs `langgraph deploy`. |
-| CLI-first, public beta | No public create/update/invoke REST surface. Calling a deployed agent from your own application is not documented during beta — tell the user to contact their LangChain team. |
-| No MCP connectors | The `connectors/mcp.*` + `define_mcp_servers` surface was **removed**. Do not write it. Give the agent authored tools instead. |
-| Slack is the only channel | No Discord, Teams, email, or SMS channel. |
-| Memory is deployment-shared | One `/memories/agent/` tree for **all** callers. There is no per-user memory. |
-| Identity is LangSmith key or Supabase | No OIDC, SAML, or custom JWT issuer. Per-user private threads require Supabase. |
-| LangSmith sandboxes only | No other sandbox provider. |
-| One agent entry per project | No multiple graphs in one project. Use `subagents=` for delegation. |
-| Schedules must be static literals | No env vars, function calls, or computed values in a schedule declaration. |
-| Build archive capped at 200 MB | Large fixtures or model weights in the project will fail the deploy. |
-| Managed fields are not yours to set | `backend`, `store`, `checkpointer`, `memory`, `skills`, and the system prompt are injected by the runtime. |
+| 仅限 US LangSmith Cloud（美区） | 不支持自托管、混合部署或欧洲（EU）区域。需要使用 `langgraph deploy`。 |
+| CLI 优先，处于公开公测阶段 | 没有公开的创建/更新/调用 REST API 接口。公测期间未公开从自定义应用程序调用已部署智能体的文档——请告知用户联系其 LangChain 团队。 |
+| 无 MCP 连接器 | `connectors/mcp.*` 和 `define_mcp_servers` 接口已**移除**。请勿编写相关代码。应改为为智能体提供自定义编写的工具。 |
+| Slack 是唯一的通道 | 不支持 Discord、Teams、电子邮件或短信（SMS）通道。 |
+| 记忆为部署级共享 | **所有**调用方共用同一个 `/memories/agent/` 目录树。不存在单用户独立的记忆。 |
+| 身份认证仅限 LangSmith 密钥或 Supabase | 不支持 OIDC、SAML 或自定义 JWT 签发者。实现用户独立的私有会话线程必须使用 Supabase。 |
+| 仅限 LangSmith 沙箱 | 不支持其他沙箱提供商。 |
+| 每个项目仅限一个智能体入口 | 单个项目中不能包含多个 Graph。委托任务请使用 `subagents=`。 |
+| 定时调度必须为静态字面量 | 调度声明中不得使用环境变量、函数调用或计算出的动态值。 |
+| 构建产物压缩包上限为 200 MB | 项目中包含大型测试固件（fixtures）或模型权重会导致部署失败。 |
+| 托管字段不可由用户自行配置 | `backend`、`store`、`checkpointer`、`memory`、`skills` 以及系统提示词均由运行时自动注入。 |
 
-## Prerequisites
+## 前提条件
 
-- A workspace with Managed Deep Agents public beta access, and a LangSmith API key for it.
-- Python and [`uv`](https://docs.astral.sh/uv/) for Python projects; Node.js and npm for TypeScript.
-- A model provider API key.
+- 拥有 Managed Deep Agents 公测访问权限的工作区，以及该工作区的 LangSmith API 密钥。
+- Python 项目需安装 Python 和 [`uv`](https://docs.astral.sh/uv/)；TypeScript 项目需安装 Node.js 和 npm。
+- 模型提供商的 API 密钥。
 
-Install the CLI. Both packages ship the same `mda` binary:
+安装 CLI。两个包均提供相同的 `mda` 可执行文件：
 
 ```bash
 uv tool install --prerelease allow managed-deepagents   # Python
 npm install -g managed-deepagents@dev                    # TypeScript
 ```
 
-`mda init` generates a project with its own manifest — run `uv sync` (or `npm install`) *inside* that project before `mda dev`.
+`mda init` 会生成带有自身依赖清单的项目——在执行 `mda dev` 之前，请*在该项目内部*运行 `uv sync`（或 `npm install`）。
 
-## Project layout
+## 项目布局
 
-The path passed to `mda` is the project root. A file's location determines its role:
+传递给 `mda` 的路径即为项目根目录。文件的存放位置决定了其角色：
 
 ```text
 my-agent/
-  agent.py | agent.ts              # Required: exports the named `agent`
+  agent.py | agent.ts              # 必需：导出命名的 `agent`
 
-  instructions.md                  # System prompt -> Context Hub
-  skills/<name>/SKILL.md           # Task-specific procedures -> Context Hub
+  instructions.md                  # 系统提示词 -> Context Hub
+  skills/<name>/SKILL.md           # 任务专属标准化流程 -> Context Hub
 
-  tools/                           # Authored tools the agent imports
-  middleware/                      # Authored middleware the agent imports
+  tools/                           # 智能体导入的自定义工具
+  middleware/                      # 智能体导入的自定义中间件
 
-  identity.py | identity.ts        # Who may call the deployment
-  memory.py | memory.ts            # Opt-in durable memory
-  channels/<name>.py               # External messaging (Slack)
-  schedules/<name>.py              # Managed cron schedules
-  sandbox/__init__.py | index.ts   # Managed sandbox
+  identity.py | identity.ts        # 谁有权调用该部署
+  memory.py | memory.ts            # 按需启用的持久化记忆
+  channels/<name>.py               # 外部消息通道（Slack）
+  schedules/<name>.py              # 托管的 Cron 定时调度
+  sandbox/__init__.py | index.ts   # 托管沙箱
 
-  pyproject.toml | package.json    # Dependencies
-  .env                             # Auth + runtime secrets, never archived
+  pyproject.toml | package.json    # 项目依赖配置
+  .env                             # 认证 + 运行时密钥，绝不会被打包归档
 
-  evals/tasks/<task>/              # Harbor evals, not deployed
+  evals/tasks/<task>/              # Harbor 评测任务，不进行部署
 ```
 
-Only the agent entry is required. `tools/` and `middleware/` are plain conventions — MDA copies project files verbatim, so any local module the agent imports works. The other paths take on managed meaning when present. TypeScript declarations also accept `.tsx`, `.mts`, and `.cts`.
+仅智能体入口文件是必需的。`tools/` 和 `middleware/` 仅为常规目录约定——MDA 会原样复制项目文件，因此智能体导入的任何本地模块均可正常工作。其他路径在存在时会具有托管意义。TypeScript 声明文件也支持 `.tsx`、`.mts` 和 `.cts`。
 
-## Define the agent
+## 定义智能体
 
-The agent entry returns a pre-runtime spec, not a compiled graph.
+智能体入口返回的是运行前规范（pre-runtime spec），而非已编译的 Graph。
 
 ```python
 # agent.py
@@ -210,45 +210,44 @@ export const agent = defineDeepAgent({
 });
 ```
 
-**`name` is required.** Pass a static string starting with a letter, containing only letters, numbers, underscores, or hyphens. It becomes the LangGraph assistant ID and the default deployment name; override the latter with `mda deploy --name`.
+**`name` 为必填项。** 请传入一个以字母开头且仅包含字母、数字、下划线或连字符的静态字符串。它将作为 LangGraph 助手 ID 和默认部署名称；后者可以通过 `mda deploy --name` 进行覆盖。
 
-**Author-set fields:** `name`, `model`, `tools`, `middleware`, `subagents`, `permissions`, `interrupt_on` / `interruptOn`, `response_format` / `responseFormat`, `context_schema` / `contextSchema`, `cache`, `debug`, `metadata`.
+**开发者可配置字段：** `name`、`model`、`tools`、`middleware`、`subagents`、`permissions`、`interrupt_on` / `interruptOn`、`response_format` / `responseFormat`、`context_schema` / `contextSchema`、`cache`、`debug`、`metadata`。
 
-**Managed fields — do not set:** `backend`, `store`, `checkpointer`, `memory`, `skills`, `system_prompt` / `systemPrompt`.
+**托管字段——切勿自行设置：** `backend`、`store`、`checkpointer`、`memory`、`skills`、`system_prompt` / `systemPrompt`。
 
-Model IDs use `{provider}:{model_id}` and resolve through `init_chat_model`, so any of its providers work. Note the provider slug differs across languages: Python uses `google_genai:gemini-3.6-flash`, TypeScript uses `google-genai:gemini-3.6-flash`. Pass a chat model instance instead of a string when you need to configure model parameters in code.
+模型 ID 使用 `{provider}:{model_id}` 格式，并通过 `init_chat_model` 进行解析，因此其支持的所有提供商均可使用。注意提供商标识符在不同语言中有所不同：Python 使用 `google_genai:gemini-3.6-flash`，TypeScript 使用 `google-genai:gemini-3.6-flash`。当需要在代码中配置模型参数时，可以传入 Chat Model 实例而不是字符串。
 
-To route through LangSmith Gateway (rate limits, fallbacks, workspace-billed credits), scaffold with `mda init <name> --gateway`. Gateway model slugs use `provider/model-name`, not `provider:model-name`.
+如需通过 LangSmith Gateway 路由（获取速率限制、故障回退、按工作区结算额度等功能），请在初始化时使用 `mda init <name> --gateway`。Gateway 模型标识使用 `provider/model-name`，而非 `provider:model-name`。
 
-## Instructions
+## 指令 (Instructions)
 
-`instructions.md` at the project root is the system prompt. It is inserted on every run.
+项目根目录下的 `instructions.md` 即为系统提示词。它会在每次运行时注入。
 
 ```markdown
-# Research assistant
+# 调研助手
 
-You are a careful research assistant. Find sources, keep notes, and return
-concise answers with citations.
+你是一名严谨的调研助手。负责寻找信息来源、记录笔记并提供带有引用的简明回答。
 
-## Behavior
+## 行为规范
 
-- Use the `web_search` tool to find sources instead of guessing.
-- Cite the sources you used.
+- 使用 `web_search` 工具查找来源，严禁主观臆测。
+- 注明你所使用的信息来源。
 ```
 
-`mda dev` embeds it locally. `mda deploy` syncs it to Context Hub, where it can be edited in the LangSmith UI without redeploying.
+`mda dev` 会在本地嵌入该文件。`mda deploy` 会将其同步至 Context Hub，之后可在 LangSmith UI 中直接编辑而无需重新部署。
 
-## Skills
+## 技能 (Skills)
 
-Deploy-owned procedures under `skills/<name>/SKILL.md`, each with `name` and `description` frontmatter. At startup the agent sees only names and descriptions, and reads the full file when a task matches — so detailed procedures cost no context until they are needed. A skill directory may also hold scripts, references, and templates; reference them from `SKILL.md`.
+归部署所有的任务流程存放在 `skills/<name>/SKILL.md` 下，每个文件都包含 `name` 和 `description` 的 frontmatter。启动时，智能体只能看到技能名称和描述，仅当任务匹配时才会读取完整文件——因此在需要之前，详细流程不会占用任何上下文。技能目录还可以存放脚本、参考资料和模板；可在 `SKILL.md` 中引用它们。
 
-Deploy syncs every UTF-8 file under `skills/` to Context Hub and deletes deployed skill files that no longer exist locally. The agent cannot modify skills.
+部署操作会将 `skills/` 下的所有 UTF-8 文件同步到 Context Hub，并删除本地已不存在但已部署的技能文件。智能体无法修改技能。
 
-Use **instructions** for always-on behavior, **skills** for procedures loaded on demand, and **memory** for knowledge the agent itself updates.
+对于始终生效的行为使用**指令（instructions）**，对于按需加载的流程使用**技能（skills）**，对于智能体自行更新的知识使用**记忆（memory）**。
 
-## Memory
+## 记忆 (Memory)
 
-Durable memory is **opt-in and off by default**. Declare it at the project root:
+持久化记忆是**可选的，且默认处于关闭状态**。在项目根目录下进行声明：
 
 ```python
 # memory.py
@@ -264,20 +263,20 @@ import { defineMemory } from "managed-deepagents";
 export const memory = defineMemory({ scope: "agent" });
 ```
 
-Delete the file to turn memory off. Enabling it mounts one Context Hub tree at `/memories/agent/`:
+删除该文件即可关闭记忆功能。启用后，系统会在 `/memories/agent/` 下挂载一个 Context Hub 目录树：
 
-- `/memories/agent/AGENTS.md` is **hot memory** — loaded into every run, so keep it compact.
-- Other files under the tree are **cold memory** — read only when relevant.
+- `/memories/agent/AGENTS.md` 为**热记忆（hot memory）**——每次运行都会加载，因此请保持其内容精炼。
+- 该目录树下的其他文件为**冷记忆（cold memory）**——仅在相关时读取。
 
-The agent reads and writes memory with `read_file`, `edit_file`, and `write_file`. Writes anywhere else, including elsewhere under `/memories/`, are not durable.
+智能体通过 `read_file`、`edit_file` 和 `write_file` 读写记忆。写入其他任何位置（包括 `/memories/` 下的其他子路径）均不具备持久性。
 
-> **Warning — memory is shared by every caller of the deployment, and every caller can influence it.** Never store personal data, customer data, credentials, API keys, or tokens there. Treat memory content as untrusted input: it must never grant authority, change tool permissions, or bypass approvals — keep those in the agent definition. Do not enable shared memory when callers should not be able to influence one another.
+> **警告——记忆由该部署的所有调用方共享，且每个调用方均可影响记忆内容。** 严禁在其中存储个人数据、客户数据、凭据、API 密钥或 Token。应将记忆内容视为不可信输入：绝不能通过记忆赋予权限、更改工具权限或绕过审批——这些必须硬编码在智能体定义中。如果调用方之间不应相互影响，切勿启用共享记忆。
 
-The agent decides what to remember by prompting, so state the policy in `instructions.md` — what to store, what never to store, and that existing memory is notes rather than instructions.
+智能体根据提示词决定要记住什么内容，因此请在 `instructions.md` 中阐明记忆策略——哪些内容可以存储、哪些绝不能存储，并说明已有记忆仅作为参考笔记而非系统指令。
 
-## Identity
+## 身份认证 (Identity)
 
-`identity.py` controls who may call the deployment. `mda init` scaffolds a secure default:
+`identity.py` 用于控制谁可以调用该部署。`mda init` 会生成一个安全的默认配置：
 
 ```python
 # identity.py
@@ -286,23 +285,23 @@ from managed_deepagents import auth, define_identity
 identity = define_identity(auth=auth.langsmith_api_key())
 ```
 
-Callers send a LangSmith workspace API key as `x-api-key`. This answers *whether a caller is allowed* — it does **not** give each person private threads. Anyone holding the key reaches the deployment.
+调用方需在请求头中以 `x-api-key` 形式发送 LangSmith 工作区 API 密钥。这解决了*调用方是否有权限访问*的问题——但它**不会**为每个人分配私有线程。持有该密钥的任何人均可访问该部署。
 
-For signed-in end users with private threads, use Supabase:
+对于需要拥有私有线程的已登录终端用户，请使用 Supabase：
 
 ```python
 identity = define_identity(auth=auth.supabase(project_ref="your-project-ref"))
 ```
 
-Clients then send `Authorization: Bearer <access_token>`; MDA verifies the JWT against the project's JWKS URL. Send the Supabase publishable (anon) key only from the client to sign in — never a LangSmith key in this mode.
+此时客户端需发送 `Authorization: Bearer <access_token>`；MDA 会根据该项目的 JWKS URL 验证 JWT。在此模式下，客户端仅可发送 Supabase 可公开（anon）密钥用于登录——绝不能发送 LangSmith 密钥。
 
-> Adding Supabase identity to an existing deployment does **not** backfill owner metadata on existing threads. Plan and test a migration before relying on identity-based access for them.
+> 为现有部署添加 Supabase 身份认证**不会**回填现有会话线程的拥有者元数据。在依赖基于身份的访问控制之前，请规划并测试数据迁移。
 
-Auth failures return 401; cross-user thread access returns 403.
+认证失败将返回 401；跨用户访问线程将返回 403。
 
-## Tools
+## 工具 (Tools)
 
-Define LangChain tools in the project, import them into the agent entry, pass them in `tools`.
+在项目中定义 LangChain 工具，将其导入智能体入口文件，并传入 `tools` 列表。
 
 ```python
 # tools/customer.py
@@ -311,12 +310,12 @@ from langchain.tools import tool
 
 @tool(parse_docstring=True)
 def lookup_customer(customer_id: str) -> str:
-    """Look up a customer record by ID.
+    """根据 ID 查询客户记录。
 
     Args:
-        customer_id: Customer ID from the CRM.
+        customer_id: CRM 中的客户 ID。
     """
-    return f"Customer {customer_id} is on the enterprise plan."
+    return f"客户 {customer_id} 为企业版套餐。"
 ```
 
 ```ts
@@ -325,22 +324,22 @@ import { tool } from "langchain";
 import { z } from "zod";
 
 export const lookupCustomer = tool(
-  async ({ customerId }) => `Customer ${customerId} is on the enterprise plan.`,
+  async ({ customerId }) => `客户 ${customerId} 为企业版套餐。`,
   {
     name: "lookup_customer",
-    description: "Look up a customer record by ID.",
-    schema: z.object({ customerId: z.string().describe("Customer ID from the CRM.") }),
+    description: "根据 ID 查询客户记录。",
+    schema: z.object({ customerId: z.string().describe("CRM 中的客户 ID。") }),
   },
 );
 ```
 
-Imports work exactly as in a normal local project. Use clear, unique tool names to avoid collisions. Tools read deployment secrets from environment variables; put local values in `.env`. For per-run values such as request metadata or feature flags, use the normal LangChain runtime context APIs.
+模块导入方式与普通本地项目完全一致。请使用清晰、唯一的工具名称以避免命名冲突。工具从环境变量中读取部署密钥；本地调试值放入 `.env` 中。对于单次运行的专属参数（如请求元数据或特性开关），请使用标准的 LangChain 运行时上下文 API。
 
-Provider server-side tools can be passed inline where supported — for example `tools=[{"type": "web_search"}]` for OpenAI — which avoids a second API key.
+在受支持的情况下，可以以内联形式传递提供商服务端工具——例如 OpenAI 的 `tools=[{"type": "web_search"}]`——这样可以免去配置第二套 API 密钥。
 
-## Middleware
+## 中间件 (Middleware)
 
-Middleware wraps model calls, tool calls, and lifecycle hooks. Order is explicit in the list; MDA never infers it. Use prebuilt LangChain middleware or author your own (see [[langchain-middleware]]).
+中间件用于包装模型调用、工具调用和生命周期钩子。执行顺序由列表中的先后顺序明确指定；MDA 绝不会自动推断顺序。可以使用预构建的 LangChain 中间件或自行编写（参见 [[langchain-middleware]]）。
 
 ```python
 from langchain.agents.middleware import ModelCallLimitMiddleware, PIIMiddleware
@@ -356,11 +355,11 @@ agent = define_deep_agent(
 )
 ```
 
-Middleware is the right place for PII handling, rate limits, retries, model fallbacks, dynamic model selection, and tool-call monitoring.
+中间件非常适合用于 PII 处理、速率限制、重试、模型故障回退、动态模型选择以及工具调用监控。
 
-## Sandboxes
+## 沙箱 (Sandboxes)
 
-A sandbox gives the agent an isolated filesystem and shell. `mda init` scaffolds one; **delete the `sandbox/` directory to opt out**, which is right for an agent that only needs its prompt, tools, and memory.
+沙箱为智能体提供隔离的文件系统和 Shell 环境。`mda init` 默认会生成沙箱；**删除 `sandbox/` 目录即可取消配置**，这对于只需要提示词、工具和记忆的智能体而言是正确的选择。
 
 ```python
 # sandbox/__init__.py
@@ -384,15 +383,15 @@ export const sandbox = defineSandbox({
 });
 ```
 
-`scope="thread"` (the default) creates one sandbox per durable thread. `scope="agent"` shares a single filesystem across threads — **only use it for intentionally shared state**, since threads can then read and modify each other's files. Set the creation source with `template_name` *or* `snapshot_id`, never both.
+`scope="thread"`（默认值）会为每个持久化线程创建一个独立的沙箱。`scope="agent"` 则跨线程共享单个文件系统——**请仅在需要有意共享状态时使用**，因为各线程将能够相互读取和修改文件。创建来源需通过 `template_name` *或* `snapshot_id` 指定，二者不可兼得。
 
-The agent works through `ls`, `read_file`, `write_file`, `edit_file`, `glob`, `grep`, and `execute`. Use `instructions.md` to say where it should work and what it must not touch. `mda delete` also deletes the managed sandboxes.
+智能体通过 `ls`、`read_file`、`write_file`、`edit_file`、`glob`、`grep` 和 `execute` 操作沙箱。可使用 `instructions.md` 规定其工作目录以及禁止触碰的文件。执行 `mda delete` 时也会一并删除托管的沙箱。
 
-During `mda dev`, if the provider is unavailable the runtime falls back to a local temp directory and prints the path. That fallback is for development only — verify sandbox behavior in a dev deployment.
+在 `mda dev` 期间，如果提供商不可用，运行时会回退到本地临时目录并打印路径。该回退仅用于开发调试——请在开发部署环境中验证真实的沙箱行为。
 
-## Schedules
+## 定时调度 (Schedules)
 
-One schedule per file under `schedules/`, each exporting a named `schedule`. The file name becomes the schedule name.
+`schedules/` 下每个文件对应一个定时调度，每个文件需导出一个命名的 `schedule`。文件名即为调度名称。
 
 ```python
 # schedules/daily_digest.py
@@ -401,21 +400,21 @@ from managed_deepagents import define_schedule
 schedule = define_schedule(
     cron="0 8 * * 1-5",
     timezone="America/Los_Angeles",
-    prompt="Summarize what you learned yesterday and list open questions.",
+    prompt="总结昨天学到的内容并列出未解决的问题。",
 )
 ```
 
-Define **exactly one** of `prompt` (turned into a user message) or `input` (a structured LangGraph input). `cron` must be a standard five-field expression; without `timezone`, crons run UTC.
+必须在 `prompt`（转换为用户消息）或 `input`（结构化 LangGraph 输入）中**恰好定义其中一个**。`cron` 必须是标准的五位表达式；如果不指定 `timezone`，Cron 将按 UTC 时间运行。
 
-Schedules use ephemeral threads by default — a fresh thread per run, deleted afterward. Pass `thread={"mode": "persistent", "id": "..."}` only when runs should accumulate durable thread state. Set `deliver_to` to post results through a configured Slack channel.
+定时调度默认使用临时线程（ephemeral threads）——每次运行创建全新线程，运行结束后即删除。仅当运行需要累积持久线程状态时，才传入 `thread={"mode": "persistent", "id": "..."}`。设置 `deliver_to` 可将结果投递到配置好的 Slack 通道中。
 
-Declarations are extracted at compile time **without running your code**: use literals and top-level literal constants only. No env vars, function calls, or `**kwargs`.
+调度声明在编译时**无需运行代码即可直接提取**：因此只能使用字面量和顶级字面量常量。不得使用环境变量、函数调用或 `**kwargs`。
 
-`mda deploy` reconciles schedules after the deployment is live — it deletes MDA-owned crons and recreates them from the current files, so deleting a file and redeploying removes the cron. **`--no-wait` skips reconciliation entirely**, so never use it when adding, changing, or removing schedules.
+`mda deploy` 会在部署就绪后对调度进行对齐同步（reconcile）——它会删除 MDA 管理的历史 Cron 并根据当前文件重新创建，因此删除文件并重新部署即可移除对应的 Cron。**`--no-wait` 会完全跳过调度同步**，因此在添加、修改或删除调度时切勿使用该参数。
 
-## Channels
+## 通道 (Channels)
 
-A channel connects the agent to an external messaging service: inbound events start runs, and responses go back to the same conversation. **Slack is the only supported provider.** One channel per file under `channels/`, each exporting a named `channel`.
+通道将智能体连接到外部消息服务：入站事件触发运行，响应则返回至同一对话中。**Slack 是唯一受支持的提供商。** `channels/` 下每个文件对应一个通道，每个文件需导出一个命名的 `channel`。
 
 ```python
 # channels/slack.py
@@ -424,72 +423,72 @@ from managed_deepagents import channels
 channel = channels.slack()
 ```
 
-The file name sets the channel name and its inbound route — `channels/slack.py` receives events at `POST /channels/slack/events`. Names must be unique; never name a file `channels/channel.py`.
+文件名决定了通道名称及其入站路由——`channels/slack.py` 将在 `POST /channels/slack/events` 接收事件。名称必须唯一；切勿将文件命名为 `channels/channel.py`。
 
-Channel-originated runs expose `runtime.channel` to tools and middleware, carrying the normalized event and conversation address plus methods to post and update messages. Ordinary HTTP runs and scheduled runs have no originating channel, so `runtime.channel` is absent.
+源自通道的运行会向工具和中间件暴露 `runtime.channel`，其中包含规范化的事件和对话地址，以及用于发送和更新消息的方法。普通的 HTTP 运行和定时运行没有发起通道，因此不会包含 `runtime.channel`。
 
-Slack setup needs a project-root `slack-app-manifest.json` and `SLACK_SIGNING_SECRET` + `SLACK_BOT_TOKEN` in `.env`. Treat the manifest as the source of truth; files generated under `.mda/` are build artifacts and must not be committed. `runtime.channel` never exposes the bot token.
+配置 Slack 需要在项目根目录下提供 `slack-app-manifest.json`，并在 `.env` 中配置 `SLACK_SIGNING_SECRET` + `SLACK_BOT_TOKEN`。请将该清单文件视为唯一真实数据源；`.mda/` 下生成的文件属于构建产物，切勿提交到版本控制中。`runtime.channel` 绝不会暴露 Bot Token。
 
-A channel *receives* messages that start runs. It is not the same as giving the agent Slack *tools* for initiating operations — a project may want either or both.
+通道的作用是*接收*触发运行的消息。这与为智能体提供用于主动发起操作的 Slack *工具*不同——项目可以根据需要配置其中之一或两者兼备。
 
-## Evals
+## 评测 (Evals)
 
-MDA evals are [Harbor](https://www.harborframework.com/docs/tasks) evals. `evals/tasks/` is the canonical dataset; author complete Harbor tasks there. `mda evals` does not introduce a separate format and does not run trials — it packages the agent for Harbor and prints a `harbor run` command.
+MDA 评测基于 [Harbor](https://www.harborframework.com/docs/tasks) 评测体系。`evals/tasks/` 为标准数据集目录；可在其中编写完整的 Harbor 任务。`mda evals` 不引入独立的文件格式，也不直接运行试验——它负责将智能体打包以供 Harbor 使用，并输出一条 `harbor run` 命令。
 
 ```bash
-mda evals init smoke      # optional starter under evals/scaffold/
-mda evals compile .       # copies scaffolds into evals/tasks/, writes the handoff
+mda evals init smoke      # 可选：在 evals/scaffold/ 下生成初始模板
+mda evals compile .       # 将模板复制到 evals/tasks/ 并写入交接配置
 ```
 
-`evals/` is not included in the deployed build. Harbor needs Docker for its default environment, and **does not read `.env`** — the generated job config writes `${VAR}` placeholders, so export the variables in the shell that runs Harbor. Verifiers write a numeric reward to `/logs/verifier/reward.txt` or metrics to `/logs/verifier/reward.json`. For deeper eval design, see [[eval-engineering]].
+`evals/` 不会包含在部署构建产物中。Harbor 的默认环境依赖 Docker，且**不会读取 `.env`**——生成的作业配置会写入 `${VAR}` 占位符，因此请在运行 Harbor 的 Shell 中导出这些环境变量。验证器会将数值奖励写入 `/logs/verifier/reward.txt`，或将指标写入 `/logs/verifier/reward.json`。关于更深入的评测设计，参见 [[eval-engineering]]。
 
-## CLI reference
+## CLI 命令参考
 
-| Command | Use |
+| 命令 | 用途 |
 | --- | --- |
-| `mda init <name>` | Scaffold a project. Fails if the destination exists. |
-| `mda build [path]` | Compile into a managed LangGraph app without deploying. |
-| `mda dev [path]` | Compile and run the local dev server in LangSmith Studio. |
-| `mda deploy [path]` | Compile, sync Context Hub, upload, deploy, reconcile schedules. |
-| `mda logs [path]` | Tail Agent Server logs for a deployed agent. |
-| `mda delete [path]` | Delete a deployment and the LangSmith resources it created. Alias: `destroy`. |
-| `mda evals init\|compile` | Scaffold a Harbor task; package the agent for Harbor. Alias: `eval`. |
+| `mda init <name>` | 生成项目脚手架。如果目标目录已存在则报错退出。 |
+| `mda build [path]` | 编译为托管 LangGraph 应用，不执行部署。 |
+| `mda dev [path]` | 编译并在 LangSmith Studio 中运行本地开发服务器。 |
+| `mda deploy [path]` | 编译、同步 Context Hub、上传、部署并对齐定时调度。 |
+| `mda logs [path]` | 实时查看已部署智能体的 Agent Server 日志。 |
+| `mda delete [path]` | 删除部署及其创建的 LangSmith 资源。别名：`destroy`。 |
+| `mda evals init\|compile` | 生成 Harbor 任务脚手架；为 Harbor 打包智能体。别名：`eval`。 |
 
-Key flags:
+核心参数选项：
 
 - `init`: `--model SPEC`, `--instructions TEXT`, `--instructions-file PATH`, `--memory agent|none`, `--gateway`, `--no-sandbox`
-- `build`: `--out OUT` (defaults to `<path>/.mda/build`, emptied before each build)
+- `build`: `--out OUT`（默认为 `<path>/.mda/build`，每次构建前会清空）
 - `dev`: `--port`, `--hostname`, `--no-browser`, `--no-reload`
 - `deploy`: `--name`, `--deployment-type dev|prod`, `--workspace-id`, `--no-wait`
 - `logs`: `--name`, `--lines`, `--level`, `--follow` / `--no-follow`, `--workspace-id`
 - `delete`: `--name`, `--workspace-id`, `--yes`
 
-`mda init` detects the language from the current directory (`pyproject.toml` → Python, `package.json` → TypeScript, both or neither → interactive prompt). `mda dev` requires `uv` for Python and resolves the LangGraph dev server itself.
+`mda init` 会根据当前目录自动检测语言（存在 `pyproject.toml` → Python，存在 `package.json` → TypeScript，两者皆有或皆无 → 交互式提示选择）。`mda dev` 在 Python 环境下需要 `uv`，并会自动解析 LangGraph 开发服务器。
 
-> `mda delete` is destructive and removes the deployment plus its LangSmith resources. **Confirm with the user before running it, and never pass `--yes` unprompted** — that flag exists to skip the confirmation you should be getting.
+> `mda delete` 属于破坏性操作，会删除部署及其关联的 LangSmith 资源。**在运行前请务必向用户确认，绝不要在未提示的情况下直接传入 `--yes`**——该标志的作用是跳过本应向用户确认的步骤。
 
-## Deploy and Context Hub
+## 部署与 Context Hub
 
-Authentication resolves in order: `LANGGRAPH_HOST_API_KEY`, `LANGSMITH_API_KEY`, `LANGCHAIN_API_KEY` — read from the project `.env` first, then the shell. In an interactive terminal with no key found, `mda deploy` prompts and saves it to `.env`. Use `--workspace-id` or `LANGSMITH_WORKSPACE_ID` with an organization-scoped key.
+身份认证信息的解析顺序为：`LANGGRAPH_HOST_API_KEY`、`LANGSMITH_API_KEY`、`LANGCHAIN_API_KEY`——优先从项目 `.env` 读取，其次从当前 Shell 环境读取。在交互式终端中若未找到密钥，`mda deploy` 会提示输入并将其保存到 `.env`。使用组织级密钥时，请配合 `--workspace-id` 或 `LANGSMITH_WORKSPACE_ID` 使用。
 
-`mda deploy` routes local inputs to different managed surfaces:
+`mda deploy` 会将本地输入分发到不同的托管服务平面：
 
 ```text
-instructions.md + skills/**   -> Context Hub deploy-owned context
-.env                          -> deploy auth + non-reserved hosted secrets (never archived)
-project source                -> .mda/build archive -> hosted deployment
-schedules/**                  -> LangSmith cron jobs, after the deployment is live
+instructions.md + skills/**   -> Context Hub 归部署所有的上下文
+.env                          -> 部署认证 + 非保留的托管密钥（绝不打包归档）
+项目源代码                    -> .mda/build 归档包 -> 托管部署
+schedules/**                  -> LangSmith Cron 作业（部署就绪后生效）
 ```
 
-Non-reserved `.env` entries — provider keys, tool credentials, database URLs — are forwarded as hosted deployment secrets. Reserved platform variables (`LANGSMITH_API_KEY`, `LANGGRAPH_HOST_API_KEY`, `LANGCHAIN_API_KEY`, `LANGSMITH_WORKSPACE_ID`) authenticate the deploy and route it, but are never uploaded as user-managed secrets. Deploy fails before upload if the model's provider key is not available from `.env`, the shell, or LangSmith workspace secrets.
+`.env` 中的非保留项（提供商密钥、工具凭据、数据库连接串）将作为托管部署密钥进行转发。平台保留变量（`LANGSMITH_API_KEY`、`LANGGRAPH_HOST_API_KEY`、`LANGCHAIN_API_KEY`、`LANGSMITH_WORKSPACE_ID`）仅用于认证部署请求并进行路由，绝不会作为用户托管密钥上传。如果模型所需的提供商密钥在 `.env`、Shell 或 LangSmith 工作区密钥中均不存在，部署将在上传前直接失败。
 
-Context Hub holds `/instructions.md` and `/skills/**` (deploy-owned, resynced each deploy) and `/memories/agent/**` (runtime-owned, preserved across deploys).
+Context Hub 存放 `/instructions.md` 和 `/skills/**`（归部署所有，每次部署时重新同步）以及 `/memories/agent/**`（归运行时所有，跨部署持久保留）。
 
-Troubleshooting: `no agent entry file found` → add `agent.py` at the root. 401/403 → the key's workspace lacks beta access. Context Hub conflict → re-run the deploy. Build over 200 MB → remove generated artifacts. `BUILD_FAILED` / `DEPLOY_FAILED` → open the printed URL and read the revision logs.
+排错指南：提示 `no agent entry file found` → 在根目录添加 `agent.py`。提示 401/403 → 该密钥所在工作区缺少公测权限。提示 Context Hub conflict → 重新运行部署。构建产物超过 200 MB → 清理生成的构建缓存与文件。状态显示 `BUILD_FAILED` / `DEPLOY_FAILED` → 打开输出的 URL 查看修订版本日志。
 
-## Human-in-the-loop
+## 人机协同 (Human-in-the-loop)
 
-Pause before sensitive tool calls with `interrupt_on`, and gate filesystem paths with `permissions`:
+使用 `interrupt_on` 在执行敏感工具调用前暂停，使用 `permissions` 控制文件系统访问路径：
 
 ```python
 agent = define_deep_agent(
@@ -500,19 +499,19 @@ agent = define_deep_agent(
 )
 ```
 
-`interrupt_on` applies the same behavior as LangChain's human-in-the-loop middleware; see [[langgraph-human-in-the-loop]] for approve/edit/reject semantics. Interrupts need durable thread state, and the managed runtime owns the checkpointer, so no extra setup is required.
+`interrupt_on` 的作用机制与 LangChain 的人机协同中间件相同；有关审批/编辑/拒绝语义，参见 [[langgraph-human-in-the-loop]]。中断机制依赖持久化的线程状态，而托管运行时拥有 Checkpointer 的管理权，因此无需额外配置。
 
-Respond to interrupts in Studio during `mda dev`. On a deployed agent, resume through the LangGraph server API with a `Command(resume=...)` payload — but note that programmatic invocation from your own application is not documented during public beta.
+在 `mda dev` 期间，可在 Studio 中直接响应中断。对于已部署的智能体，可通过 LangGraph 服务端 API 发送 `Command(resume=...)` 负载来恢复执行——但请注意，公测期间未提供从自定义应用程序进行编程式调用的公开文档。
 
-## Gotchas
+## 常见易错点与注意事项
 
-- **`name=` is required** in `define_deep_agent` / `defineDeepAgent`. A definition without it fails.
-- **Model IDs need the provider prefix**: `anthropic:claude-sonnet-4-6`, not a bare model name. Python uses `google_genai:`, TypeScript uses `google-genai:`, and Gateway uses `provider/model`.
-- **Do not set managed fields** (`backend`, `store`, `checkpointer`, `memory`, `skills`, system prompt) in the agent definition.
-- **Memory is opt-in via `memory.py`**, not a constructor argument. `disable_memory` is legacy — declare or delete `memory.py` instead.
-- **MCP connectors do not exist.** `connectors/mcp.*` and `define_mcp_servers` were removed; writing them fails.
-- **Restart `mda dev` after adding a managed file.** New `memory.py`, `identity.py`, `schedules/`, or `channels/` declarations are discovered at compile time, not by hot reload.
-- **`--no-wait` skips schedule reconciliation** and exits before `DEPLOYED`.
-- **Schedule declarations must be static literals** — the compiler extracts them without running your code.
-- **`.env` is never archived**, and `.gitignore` must keep it out of version control. Do not write live keys into it on a user's behalf.
-- **The docs run slightly ahead of the released CLI.** Verify against `mda --help` and the installed package before trusting a flag or import. As of `mda` 0.5.0: the sandbox docs show `sandboxes.langsmith(...)`, but that import raises `ImportError` — use `define_sandbox(...)` as shown above; and the documented `mda init --identity` and `mda deploy --configure-slack` flags are not present (`identity.py` is scaffolded by default).
+- **`define_deep_agent` / `defineDeepAgent` 中 `name=` 为必填项。** 缺少该字段定义将报错。
+- **模型 ID 必须包含提供商前缀**：必须是 `anthropic:claude-sonnet-4-6`，不能仅写模型名。Python 使用 `google_genai:`，TypeScript 使用 `google-genai:`，Gateway 使用 `provider/model`。
+- **切勿在智能体定义中设置托管字段**（`backend`、`store`、`checkpointer`、`memory`、`skills`、系统提示词）。
+- **记忆功能通过 `memory.py` 按需启用**，而非构造函数参数。`disable_memory` 为旧版废弃用法——请通过声明或删除 `memory.py` 来控制。
+- **不存在 MCP 连接器。** `connectors/mcp.*` 和 `define_mcp_servers` 已被移除；编写它们会导致报错。
+- **添加托管文件后需重启 `mda dev`。** 新增的 `memory.py`、`identity.py`、`schedules/` 或 `channels/` 声明是在编译时发现的，不支持热重载。
+- **`--no-wait` 会跳过调度同步**并在状态变为 `DEPLOYED` 之前提前退出。
+- **定时调度声明必须是静态字面量**——编译器在不执行代码的情况下提取它们。
+- **`.env` 绝不会被打包归档**，且必须在 `.gitignore` 中将其排除在版本控制之外。切勿代表用户直接向其中写入真实密钥。
+- **文档更新略超前于已发布的 CLI 版本。** 在采纳某个标志或导入路径之前，请先通过 `mda --help` 和已安装的依赖包进行验证。截至 `mda` 0.5.0 版本：沙箱文档中写的是 `sandboxes.langsmith(...)`，但该导入会引发 `ImportError`——请按上文所示使用 `define_sandbox(...)`；文档中记载的 `mda init --identity` 和 `mda deploy --configure-slack` 标志实际并不存在（`identity.py` 默认会自动生成脚手架）。

@@ -1,13 +1,13 @@
-# Trace Inspection
+# Trace 检查
 
-How to discover trace field names for use in evaluator `variable_mapping` (LLM evaluators) and `run.inputs`/`run.outputs` (code evaluators).
+如何探查 Trace 字段名称，以便在评估器的 `variable_mapping`（LLM 评估器）以及 `run.inputs`/`run.outputs`（代码评估器）中使用。
 
-Always inspect traces before building an evaluator. Never guess field names.
+在构建评估器之前，务必先检查 Trace。切勿猜测字段名称。
 
-## Procedure
+## 操作流程
 
-1. Ask the user for their LangSmith project name.
-2. Fetch 3--5 recent traces:
+1. 向用户询问其 LangSmith 项目名称。
+2. 获取 3–5 条最近的 Trace：
 
 ```python
 from langsmith import Client
@@ -16,67 +16,67 @@ client = Client()
 runs = list(client.list_runs(project_name="<project>", limit=5))
 ```
 
-3. For each run, print:
-   - `run.name` -- the run name (often the chain or agent class)
-   - `run.run_type` -- `chain`, `llm`, `tool`, `retriever`, etc.
-   - `list(run.inputs.keys())` -- available input field names
-   - `list(run.outputs.keys())` -- available output field names
-   - Truncated samples of `run.inputs` and `run.outputs` (cap at ~2000 chars)
+3. 针对每个 Run，打印以下内容：
+   - `run.name` —— Run 名称（通常是链或 Agent 的类名）
+   - `run.run_type` —— `chain`、`llm`、`tool`、`retriever` 等
+   - `list(run.inputs.keys())` —— 可用的输入字段名称
+   - `list(run.outputs.keys())` —— 可用的输出字段名称
+   - `run.inputs` 和 `run.outputs` 的截断样本（限制在约 2000 个字符以内）
 
-4. Identify which fields carry the data the evaluator needs.
+4. 确定哪些字段包含了评估器所需的数据。
 
-## Common field name patterns
+## 常见字段名模式
 
-### Chatbot / conversational agent
+### 聊天机器人 / 对话型 Agent
 
 ```
-inputs:  {"input": "user message"}      or  {"messages": [...]}
-outputs: {"output": "assistant reply"}  or  {"messages": [...]}
+inputs:  {"input": "user message"}      或  {"messages": [...]}
+outputs: {"output": "assistant reply"}  或  {"messages": [...]}
 ```
 
-Typical `variable_mapping`: `{"input": "input", "output": "output"}`
+典型的 `variable_mapping`：`{"input": "input", "output": "output"}`
 
-### RAG / retrieval chain
+### RAG / 检索链
 
 ```
 inputs:  {"input": "user question", "chat_history": [...]}
 outputs: {"output": "answer", "context": [...]}
 ```
 
-Context may appear as `"context"`, `"documents"`, or `"source_documents"`. Check the actual keys.
+上下文可能以 `"context"`、`"documents"` 或 `"source_documents"` 的形式出现。请检查实际的键名。
 
-### Tool-calling agent
+### 工具调用型 Agent
 
 ```
 inputs:  {"input": "user request"}
 outputs: {"output": "final answer"}
 ```
 
-Tool calls appear in child runs, not in the top-level run's inputs/outputs. The top-level run still has `input` and `output` for the user-facing request and response.
+工具调用会出现在子 Run 中，而不是顶层 Run 的 inputs/outputs 中。顶层 Run 仍然使用 `input` 和 `output` 来表示面向用户的请求和响应。
 
-### Custom chains
+### 自定义链
 
-Field names depend on the chain's implementation. There is no universal schema -- this is why inspection is required.
+字段名取决于链的具体实现。不存在通用的 Schema —— 这也是为什么必须进行检查的原因。
 
-## Mapping fields to evaluators
+## 将字段映射到评估器
 
-### LLM evaluators: `variable_mapping`
+### LLM 评估器：`variable_mapping`
 
-`variable_mapping` connects prompt template variables to top-level trace fields. Only top-level fields are supported.
+`variable_mapping` 用于将 Prompt 模板变量连接到顶层 Trace 字段。仅支持顶层字段。
 
 ```python
-# If the prompt template uses {question} and {answer}:
+# 如果 Prompt 模板使用了 {question} 和 {answer}：
 VARIABLE_MAPPING = {
-    "question": "input",    # template var -> trace field
+    "question": "input",    # 模板变量 -> Trace 字段
     "answer": "output",
 }
 ```
 
-The template variables must match `{placeholders}` in the prompt messages. The trace field values must match keys in `run.inputs` or `run.outputs`.
+模板变量必须与 Prompt 消息中的 `{placeholders}` 相匹配。Trace 字段的值必须与 `run.inputs` 或 `run.outputs` 中的键匹配。
 
-### Code evaluators: `run["inputs"]` and `run["outputs"]`
+### 代码评估器：`run["inputs"]` 和 `run["outputs"]`
 
-Code evaluators access trace data through the `run` dict:
+代码评估器通过 `run` 字典访问 Trace 数据：
 
 ```python
 def perform_eval(run, example=None):
@@ -84,39 +84,39 @@ def perform_eval(run, example=None):
     outputs = run.get("outputs") or {}
     user_input = inputs.get("input", "")
     agent_output = outputs.get("output", "")
-    # ... evaluate ...
+    # ... 执行评估 ...
 ```
 
-`run` is a plain dict at runtime -- use `run.get("inputs")`, not `run.inputs`. Always use `.get()` with defaults and guard against `None` outputs.
+在运行时 `run` 是一个普通字典 —— 请使用 `run.get("inputs")`，而不是 `run.inputs`。务必使用带有默认值的 `.get()`，并针对 `None` 输出做好防护处理。
 
-## Handling variations
+## 处理异常情况
 
-### Nested structures
+### 嵌套结构
 
-Some traces nest data inside wrapper keys:
+某些 Trace 会将数据嵌套在包装键内：
 
 ```
 inputs: {"input": {"question": "...", "context": "..."}}
 ```
 
-For LLM evaluators, `variable_mapping` maps to top-level keys only. If data is nested, either:
-- Map to the top-level key and handle the nested structure in the prompt
-- Use a code evaluator instead, which can traverse nested dicts
+对于 LLM 评估器，`variable_mapping` 仅映射到顶层键。如果数据是嵌套的，可以采取以下任一做法：
+- 映射到顶层键并在 Prompt 中处理嵌套结构
+- 改用能够遍历嵌套字典的代码评估器
 
-### Inconsistent schemas
+### Schema 不一致
 
-Different runs in the same project may have different field names if multiple chain types feed into one project. Inspect several traces to identify the common pattern. If schemas vary, a code evaluator with defensive `.get()` calls is more robust than an LLM evaluator with fixed `variable_mapping`.
+如果多个链类型写入同一个项目，同一项目中的不同 Run 可能会具有不同的字段名。请检查多条 Trace 以找出通用模式。如果 Schema 各不相同，带有防御性 `.get()` 调用的代码评估器会比带有固定 `variable_mapping` 的 LLM 评估器更加健壮。
 
-### Missing outputs
+### 缺失输出
 
-Runs that errored may have `run["outputs"]` set to `None`. Code evaluators must handle this:
+发生错误的 Run，其 `run["outputs"]` 可能被设置为 `None`。代码评估器必须处理这种情况：
 
 ```python
 def perform_eval(run, example=None):
     outputs = run.get("outputs")
     if outputs is None:
         return {"key": "my_check", "score": 0, "comment": "No output (run may have errored)"}
-    # ... normal evaluation ...
+    # ... 正常评估流程 ...
 ```
 
-LLM evaluators will receive an empty string for mapped fields when the trace field is missing.
+当 Trace 字段缺失时，LLM 评估器的映射字段将接收到一个空字符串。

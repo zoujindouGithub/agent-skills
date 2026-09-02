@@ -1,26 +1,26 @@
 ---
 name: prototype
-description: Build a throwaway prototype to answer a design question. Use when the user wants to sanity-check whether a state model or logic feels right, or explore what a UI should look like.
+description: 构建一次性原型以解答设计疑问。当用户想要验证状态模型或逻辑是否合理，或者探索 UI 界面外观时使用。
 ---
 
-# Prototype
+# 原型设计（Prototype）
 
-A prototype is **throwaway code that answers a question**. The question decides the shape.
+原型是**用于解答特定疑问的一次性代码**。具体要解答的疑问决定了原型的形式。
 
-## Pick a branch
+## 选择分支
 
-Identify which question is being answered, using the user's prompt, the surrounding code, or by asking if the user is around:
+根据用户的提示词、周边代码来确定要解答的疑问，如果用户在线也可以直接询问：
 
-- **"Does this logic / state model feel right?"** → [LOGIC.md](LOGIC.md). Build a single shareable HTML file (free-play buttons plus tabbed guided walkthroughs) that pushes the state machine through cases that are hard to reason about on paper, and that a non-developer can drive.
-- **"What should this look like?"** → [UI.md](UI.md). Generate several radically different UI variations on a single route, switchable via a URL search param and a floating bottom bar.
+- **“这个逻辑/状态模型感觉对吗？”** → [LOGIC.md](LOGIC.md)。构建一个可共享的单文件 HTML（包含自由操作按钮以及带标签页的引导式演示流程），驱动状态机跑通那些在纸面上难以推演的边界情况，且非开发人员也能轻松操作。
+- **“这个界面应该长什么样？”** → [UI.md](UI.md)。在单个路由上生成几种截然不同的 UI 变体，可通过 URL 查询参数和悬浮底栏进行切换。
 
-The two branches produce very different artifacts, so getting this wrong wastes the whole prototype. If the question is genuinely ambiguous and the user isn't reachable, default to whichever branch better matches the surrounding code (a backend module → logic; a page or component → UI) and state the assumption at the top of the prototype.
+这两个分支产出的产物截然不同，因此选错分支会导致整个原型白费。如果需求确实模棱两可且无法联系到用户，请默认选择与周边代码更匹配的分支（后端模块 → 逻辑；页面或组件 → UI），并在原型顶部注明该假设。
 
-## Rules that apply to both
+## 通用规则
 
-1. **Throwaway from day one, and clearly marked as such.** Locate the prototype code close to where it will actually be used (next to the module or page it's prototyping for) so context is obvious, but name it so a casual reader can see it's a prototype, not production. For throwaway UI routes, obey whatever routing convention the project already uses; don't invent a new top-level structure.
-2. **Trivial to run.** A UI prototype starts from one command in the project's task runner: `pnpm <name>`, `python <path>`, `bun <path>`, etc. A logic demo is a single HTML file the user double-clicks. Either way, no thinking required to start it.
-3. **No persistence by default.** State lives in memory. Persistence is the thing the prototype is _checking_, not something it should depend on. If the question explicitly involves a database, hit a scratch DB or a local file with a clear "PROTOTYPE, wipe me" name.
-4. **Skip the polish.** No tests, no error handling beyond what makes the prototype _runnable_, no abstractions. The point is to learn something fast.
-5. **Surface the state.** After every action (logic) or on every variant switch (UI), print or render the full relevant state so the user can see what changed.
-6. **Capture it when done.** Fold any validated decision into the real code, then capture the prototype itself as a **primary source**: commit it to a throwaway branch, out of main, and leave a context pointer to that branch on the implementation issue. Capture the answer too (the verdict and the question it settled) in the issue or a commit. The main branch keeps only the validated decision.
+1. **从第一天起就是一次性的，并明确标记。** 将原型代码放置在实际使用位置附近（靠近它所针对的模块或页面），以便上下文一目了然，但在命名上必须让任何人都能看出这是原型而非生产代码。对于一次性 UI 路由，遵循项目已有的路由规范即可；不要臆造新的顶级结构。
+2. **极易运行。** UI 原型只需在项目的任务运行器中执行一条命令即可启动：`pnpm <name>`、`python <path>`、`bun <path>` 等。逻辑演示则是一个用户双击即可打开的单文件 HTML。无论哪种方式，启动时都不需要任何思考成本。
+3. **默认不进行持久化。** 状态保存在内存中。持久化往往是原型需要*验证*的内容，而不是它应该依赖的前提。如果问题明确涉及数据库，请使用临时数据库或带有明确“PROTOTYPE, wipe me”（原型，可删除）名称的本地文件。
+4. **无需润色打磨。** 无需编写测试，除了保证原型*可运行*之外无需额外的错误处理，无需抽象。其核心目的是快速获取结论。
+5. **显式呈现状态。** 在每次操作后（逻辑分支）或每次切换变体时（UI 分支），打印或渲染出完整的相关状态，以便用户能直观看到发生了什么变化。
+6. **完成后妥善留存。** 将所有经过验证的决策合并到正式代码中，然后将原型本身作为**原始依据**进行留存：将其提交到一个独立于主分支（main）的一次性分支上，并在对应的实现 Issue 中留下指向该分支的上下文链接。同时在 Issue 或提交信息中记录结论（最终定论以及它所解决的问题）。主分支仅保留经过验证的决策代码。

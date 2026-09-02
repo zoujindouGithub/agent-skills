@@ -1,37 +1,37 @@
 ---
 name: deepagents-python-quickstart
-description: "Scaffold a minimal local Deep Agent in Python by following the official quickstart, using provider-native web search instead of Tavily. Use when the user wants to quickly build or try a Deep Agent locally."
+description: "遵循官方快速入门指南，在 Python 中搭建最小化的本地 Deep Agent，并使用模型提供商原生的网络搜索替代 Tavily。当用户希望在本地快速构建或体验 Deep Agent 时使用。"
 ---
 
-# Deep Agents Python quickstart
+# Deep Agents Python 快速入门
 
-Follow the live docs — do not invent an alternate API from memory:
+遵循实时官方文档 — 切勿凭记忆捏造替代 API：
 
 **https://docs.langchain.com/oss/python/deepagents/quickstart**
 
-Fetch that page (Docs MCP or HTTP) and implement the research-agent shape it shows (`create_deep_agent`, research system prompt, invoke with a research question like “What is LangGraph?”).
+获取该页面内容（通过 Docs MCP 或 HTTP）并实现其展示的研究型智能体（research-agent）结构（`create_deep_agent`、研究系统提示词、使用诸如“What is LangGraph?”之类的研究问题进行调用）。
 
-## Local setup constraints
+## 本地配置约束
 
-Apply these on top of the quickstart (they keep setup minimal and model-agnostic):
+在快速入门指南的基础上应用以下约束（以保持配置的极简和模型无关性）：
 
-1. **Ask** which provider/model to use. Showcase that Deep Agents are model-agnostic. Suggested prompt:
+1. **询问**用户要使用的模型提供商/模型。展示 Deep Agents 的模型无关特性。建议提示语：
 
-   > Which model should this agent use? Pass a `provider:model` string — e.g. `openai:gpt-5.5`, `anthropic:claude-sonnet-5`, `google_genai:gemini-3.5-flash`. Default if you're unsure: **`anthropic:claude-sonnet-5`**.  
-   > We'll use that provider's built-in web search (no separate search API key).
+   > 该智能体应使用哪个模型？请传入 `provider:model` 格式的字符串 — 例如 `openai:gpt-5.5`、`anthropic:claude-sonnet-5`、`google_genai:gemini-3.5-flash`。如果不确定，默认使用：**`anthropic:claude-sonnet-5`**。  
+   > 我们将使用该提供商内置的网络搜索（无需单独的搜索 API 密钥）。
 
-2. Create a **new** directory (e.g. `deep-agent/`) and do all work there — do not pollute the open project.
+2. 创建一个**新**目录（例如 `deep-agent/`）并在其中完成所有工作 — 不要污染当前打开的项目。
 
-3. **Do not use Tavily** (or any second search vendor). Replace the quickstart's `internet_search` / Tavily tool with the chosen provider's built-in web search. Look up the current tool shape on that provider's LangChain chat docs (examples as of writing — re-check if needed):
+3. **不要使用 Tavily**（或任何第三方搜索服务商）。使用所选提供商内置的网络搜索替代快速入门中的 `internet_search` / Tavily 工具。查阅该提供商的 LangChain chat 文档以获取最新的工具格式（编写时的示例如下 — 必要时请重新核对）：
 
-   | Provider | Built-in search tool |
+   | 提供商 | 内置搜索工具 |
    |----------|----------------------|
    | Anthropic | `{"type": "web_search_20260209", "name": "web_search", "max_uses": 5}` |
    | OpenAI | `{"type": "web_search"}` |
    | Google | `{"google_search": {}}` |
 
-   Prefer Anthropic / OpenAI / Google so provider search is available. Only secret: that provider's API key in `.env` (gitignored). Skip LangSmith tracing unless they ask.
+   优先推荐 Anthropic / OpenAI / Google，以确保提供商原生搜索可用。唯一需要的密钥：在 `.env`（已添加到 gitignore）中配置该提供商的 API 密钥。除非用户要求，否则跳过 LangSmith 链路追踪配置。
 
-4. Install `deepagents` (+ `python-dotenv`) and the provider package for their model — not `tavily-python`.
+4. 安装 `deepagents`（+ `python-dotenv`）以及对应模型的提供商依赖包 — 而不是 `tavily-python`。
 
-5. Run the research example, show output, then stop. Point to `deep-agents-core` / customization / Managed Deep Agents for next steps.
+5. 运行研究示例，展示输出结果，然后停止。后续步骤引导用户参考 `deep-agents-core` / 自定义配置 / 托管式 Deep Agents。

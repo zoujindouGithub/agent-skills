@@ -1,30 +1,30 @@
 # 技术设计：深色模式支持
 
-## Technical Approach
+## 技术方案
 
 采用 CSS 变量（Custom Properties）方案，在 `:root` 和 `[data-theme="dark"]` 作用域下定义两套颜色 token。通过切换 `data-theme` 属性实现主题切换，利用 CSS transition 实现平滑过渡。
 
-替代方案评估：
+备选方案评估：
 - CSS-in-JS（Styled Components）：运行时开销大，不适合本项目
 - 类名切换（如 `.dark`）：与 CSS 变量方案类似，但变量方案更灵活
 - 独立 CSS 文件：增加请求数，维护成本高
 
 **选定方案：CSS 变量 + data-theme 属性**
 
-## Data Model Changes
+## 数据模型变更
 
 无数据库变更。主题偏好存储在客户端 localStorage。
 
 ```typescript
-// localStorage key: "theme"
-// values: "light" | "dark" | "system"
+// localStorage 键: "theme"
+// 取值: "light" | "dark" | "system"
 ```
 
-## API Changes
+## API 变更
 
 无 API 变更。主题切换为纯客户端功能。
 
-## Frontend Changes
+## 前端变更
 
 ### 1. 主题上下文提供者
 
@@ -100,7 +100,7 @@ interface ThemeContextType {
 
 ### 6. 设置页面更新
 
-在 `/settings` 添加"外观"分组：
+在 `/settings` 添加“外观”分组：
 
 ```typescript
 // src/pages/Settings/AppearanceSection.tsx
@@ -108,7 +108,7 @@ interface ThemeContextType {
 // 显示当前主题名称
 ```
 
-## Testing Strategy
+## 测试策略
 
 ### 单元测试
 
@@ -127,39 +127,39 @@ interface ThemeContextType {
 - [ ] 浅色 → 深色切换平滑
 - [ ] 深色 → 浅色切换平滑
 - [ ] 系统偏好为深色时首次访问正确
-- [ ] 系统偏好变化时实时跟随（当选择"跟随系统"）
+- [ ] 系统偏好变化时实时跟随（当选择“跟随系统”）
 - [ ] 刷新页面后主题偏好保持
 - [ ] 所有组件在两种主题下可读
 - [ ] 第三方组件（如图表库）不破坏主题
 
-## Deployment Plan
+## 部署计划
 
-### Phase 1：功能开发（本次变更）
+### 阶段 1：功能开发（本次变更）
 
 - 实现 ThemeProvider、ThemeToggle、CSS 变量
 - 更新所有组件
 - 添加测试
 
-### Phase 2：灰度发布（后续变更）
+### 阶段 2：灰度发布（后续变更）
 
 - 添加 feature flag `darkMode`
 - 仅对 10% 用户开放
 - 收集反馈
 
-### Phase 3：全量发布（后续变更）
+### 阶段 3：全量发布（后续变更）
 
 - 移除 feature flag
 - 全量用户可用
 - 更新用户文档
 
-## Performance Considerations
+## 性能考量
 
 - CSS 变量方案零运行时开销
 - 200ms transition 使用 GPU 加速的 `transform` 和 `opacity`
 - localStorage 读取在初始化时同步完成，无闪烁
 - 系统偏好监听使用 `matchMedia`，内存占用极小
 
-## Accessibility
+## 无障碍访问
 
 - 确保深色模式下对比度符合 WCAG AA 标准（4.5:1）
 - 主题切换控件有明确的 aria-label

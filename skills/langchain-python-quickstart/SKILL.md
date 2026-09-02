@@ -1,30 +1,30 @@
 ---
 name: langchain-python-quickstart
-description: "Scaffold a minimal local LangChain agent in Python by following the official quickstart. Use when the user wants to quickly build or try a LangChain agent locally."
+description: "按照官方快速入门指南，在 Python 中快速搭建一个最小化的本地 LangChain Agent。适用于用户希望在本地快速构建或体验 LangChain Agent 的场景。"
 ---
 
-# LangChain Python quickstart
+# LangChain Python 快速入门
 
-Follow the live docs — do not invent an alternate API from memory:
+请遵循实时官方文档 —— 切勿凭记忆捏造其他 API：
 
 **https://docs.langchain.com/oss/python/langchain/quickstart**
 
-Fetch that page (Docs MCP or HTTP) and implement what it shows (weather agent + `create_agent`).
+获取该页面内容（通过 Docs MCP 或 HTTP）并实现其演示的功能（天气 Agent + `create_agent`）。
 
-## Local setup constraints
+## 本地配置约束
 
-Apply these on top of the quickstart (they keep setup minimal and model-agnostic):
+在遵循快速入门的基础上应用以下规则（以保持最小化配置并兼顾模型无关性）：
 
-1. **Ask** which provider/model to use. Showcase that LangChain is model-agnostic. Suggested prompt:
+1. **询问**用户要使用哪个提供商/模型。展示 LangChain 的模型无关（model-agnostic）特性。建议提示词：
 
-   > Which model should this agent use? Pass a `provider:model` string — e.g. `openai:gpt-5.5`, `anthropic:claude-sonnet-5`, `google_genai:gemini-2.5-flash-lite`. Default if you're unsure: **`anthropic:claude-sonnet-5`**.
+   > 该 Agent 应该使用哪个模型？请提供一个 `provider:model` 格式的字符串 —— 例如 `openai:gpt-5.5`、`anthropic:claude-sonnet-5`、`google_genai:gemini-2.5-flash-lite`。如果不确定，默认使用：**`anthropic:claude-sonnet-5`**。
 
-   Swap the quickstart's model string for their choice (or the default).
+   将快速入门中的模型字符串替换为用户的选择（或默认值）。
 
-2. Create a **new** directory (e.g. `langchain-agent/`) and do all work there — do not pollute the open project.
+2. 创建一个**新**目录（例如 `langchain-agent/`）并在其中完成所有工作 —— 切勿污染当前打开的项目。
 
-3. Only secret: the provider API key in `.env` (gitignored). No LangSmith / Tavily unless they ask. Prefer they edit `.env` themselves — don't paste keys into chat.
+3. 唯一需要的密钥：保存在 `.env`（已加入 gitignore）中的提供商 API 密钥。除非用户主动要求，否则不要引入 LangSmith / Tavily。优先建议用户自行编辑 `.env` —— 请勿将密钥直接粘贴到聊天中。
 
-4. Install the provider package needed for their model if the quickstart's base install isn't enough.
+4. 如果快速入门的基础安装包无法满足需求，请安装其模型对应的提供商扩展包。
 
-5. Run the example, show output, then stop. Point to `langchain-fundamentals` for next steps.
+5. 运行示例，展示输出结果，然后停止。引导用户参考 `langchain-fundamentals` 以了解后续步骤。

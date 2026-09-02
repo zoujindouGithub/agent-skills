@@ -1,4 +1,4 @@
-## ADDED Requirements
+## 新增需求 (ADDED Requirements)
 
 ### Requirement: 深色模式主题切换
 系统 SHALL 支持深色模式主题切换，以提升低光环境下的用户体验。
@@ -27,7 +27,7 @@
 - **THEN** 主题过渡在 200ms 内完成
 - **AND** 使用 CSS transition 实现平滑切换
 
-## MODIFIED Requirements
+## 修改需求 (MODIFIED Requirements)
 
 ### Requirement: 设置页面布局
 设置页面 SHALL 支持分组展示配置项，主题设置作为独立分组。
@@ -44,7 +44,7 @@
 - **THEN** 显示选项：浅色、深色、跟随系统
 - **AND** 选择后立即应用预览（无需保存按钮）
 
-## REMOVED Requirements
+## 移除需求 (REMOVED Requirements)
 
 ### Requirement: 旧版主题硬编码颜色
 移除原因：所有颜色值已迁移到 CSS 变量，不再使用硬编码颜色。
