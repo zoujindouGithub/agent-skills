@@ -1,0 +1,15 @@
+# OS / editor noise
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Local-only backups kept out of the collection
+*.bak
+*.orig
+*.swp
+
+# Local tool state that must never be published
+.env
+*.pem
+*_rsa
+*_ed25519
